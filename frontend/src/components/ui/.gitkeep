@@ -1,0 +1,6 @@
+/**
+ * UI-specific components placeholder.
+ * Add ScoreRing, ProgressBar, StatCard, RecommendationCard etc. here.
+ */
+
+export {};
