@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
+import { authService } from "../../services/authService";
 import logoModalIn from '../../assets/logo.png';
 
 const RegisterPage = () => {
@@ -9,10 +10,52 @@ const RegisterPage = () => {
   const [activeTab, setActiveTab] = useState(
     location.pathname === ROUTES.LOGIN ? "masuk" : "daftar"
   );
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    password: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleChange = (field) => (e) => {
+    setFormData((current) => ({
+      ...current,
+      [field]: e.target.value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate(ROUTES.ONBOARDING_BUSINESS);
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const payload =
+        activeTab === "daftar"
+          ? {
+              name: formData.name,
+              phone: formData.phone,
+              email: formData.email,
+              password: formData.password,
+            }
+          : {
+              email: formData.email,
+              password: formData.password,
+            };
+
+      const response = activeTab === "daftar"
+        ? await authService.register(payload)
+        : await authService.login(payload);
+
+      localStorage.setItem("modalin_token", response.data.token);
+      navigate(activeTab === "daftar" ? ROUTES.ONBOARDING_BUSINESS : ROUTES.DASHBOARD);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || "Gagal memproses request. Coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -70,6 +113,8 @@ const RegisterPage = () => {
                 <input 
                   type="text" 
                   placeholder="Contoh: Dwi Ratna"
+                  value={formData.name}
+                  onChange={handleChange("name")}
                   className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
                   required
                 />
@@ -80,6 +125,8 @@ const RegisterPage = () => {
                 <input 
                   type="tel" 
                   placeholder="+62 8xx xxxx xxxx"
+                  value={formData.phone}
+                  onChange={handleChange("phone")}
                   className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
                   required
                 />
@@ -92,6 +139,8 @@ const RegisterPage = () => {
             <input 
               type="email" 
               placeholder="email@usahamu.com"
+              value={formData.email}
+              onChange={handleChange("email")}
               className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
               required
             />
@@ -102,18 +151,27 @@ const RegisterPage = () => {
             <input 
               type="password" 
               placeholder="Min. 8 karakter"
+              value={formData.password}
+              onChange={handleChange("password")}
               className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
               required
               minLength={8}
             />
           </div>
 
+          {errorMessage && (
+            <p className="text-sm text-red-600">
+              {errorMessage}
+            </p>
+          )}
+
           <div className="pt-4">
             <button 
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-[#0092B3] hover:bg-[#007F9E] text-white font-medium py-3 rounded-lg transition-colors text-sm"
             >
-              {activeTab === "daftar" ? "Daftar & lanjutkan" : "Masuk"}
+              {isSubmitting ? "Memproses..." : activeTab === "daftar" ? "Daftar & lanjutkan" : "Masuk"}
             </button>
           </div>
 

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw, Zap, TrendingUp, Clock, Star, Lightbulb, TrendingDown, FileWarning, AlertCircle, Check, Trophy, Sparkles, ArrowUpRight, ArrowDownRight, Target } from 'lucide-react';
+import { scoreService } from '../../services/scoreService';
 
 const tagStyles = {
   Capacity: 'text-[#0092B3] bg-[#E6F7FA]',
@@ -44,10 +45,67 @@ const chipStyles = {
   category: 'bg-[#E6F7FA] text-[#0092B3]',
 };
 
-function HeroScoreRing() {
+const dimensionLabels = {
+  CHARACTER: 'Character',
+  CAPACITY: 'Capacity',
+  CONDITION: 'Condition',
+  CAPITAL: 'Capital',
+  COLLATERAL: 'Collateral',
+};
+
+const getScoreDate = (value) => {
+  if (!value) return '12 Apr 2026';
+  return new Date(value).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const buildApiFactors = (factors, direction) => {
+  if (!Array.isArray(factors) || factors.length === 0) {
+    return direction === 'menurun' ? factorsMenurun : factorsNaik;
+  }
+
+  const impactType = direction === 'menurun' ? 'NEGATIVE' : 'POSITIVE';
+  const iconPool = direction === 'menurun' ? [TrendingDown, FileWarning, Clock] : [RefreshCw, Zap, TrendingUp, Clock, Star];
+  const mappedFactors = factors
+    .filter((factor) => factor.impactType === impactType)
+    .map((factor, index) => ({
+      id: factor.id || `${direction}-${index}`,
+      icon: iconPool[index % iconPool.length],
+      title: factor.title,
+      description: factor.description || 'Faktor dari hasil analisis skor kreditmu.',
+      points: Math.abs(factor.impactPoints || 0),
+      progress: Math.min(100, Math.abs(factor.impactPoints || 0)),
+      tag: dimensionLabels[factor.dimension] || 'Capacity',
+      direction,
+    }));
+
+  return mappedFactors.length > 0 ? mappedFactors : direction === 'menurun' ? factorsMenurun : factorsNaik;
+};
+
+const buildApiRecommendations = (recommendations) => {
+  if (!Array.isArray(recommendations) || recommendations.length === 0) return actionPlans;
+
+  return recommendations.map((recommendation, index) => ({
+    id: recommendation.id || `api-action-${index}`,
+    number: index + 1,
+    title: recommendation.title,
+    description: recommendation.description || 'Rekomendasi dari hasil analisis skor kreditmu.',
+    points: recommendation.estimatedPoints || 0,
+    chips: [
+      { label: recommendation.priority || 'MEDIUM', kind: recommendation.priority === 'HIGH' ? 'priority' : 'medium' },
+      { label: dimensionLabels[recommendation.dimension] || 'Capacity', kind: 'category' },
+    ],
+    cta: { label: recommendation.actionLabel || 'Mulai', variant: index === 0 ? 'primary' : 'outline' },
+  }));
+};
+
+function HeroScoreRing({ score = 748 }) {
   const r = 50;
   const c = 2 * Math.PI * r;
-  const offset = c - (748 / 1000) * c;
+  const offset = c - (score / 1000) * c;
   return (
     <div className="relative w-[110px] h-[110px] sm:w-[130px] sm:h-[130px]">
       <svg className="w-full h-full -rotate-90">
@@ -61,7 +119,7 @@ function HeroScoreRing() {
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-heading font-bold text-zinc-900 text-[28px] sm:text-[34px] leading-none">748</span>
+        <span className="font-heading font-bold text-zinc-900 text-[28px] sm:text-[34px] leading-none">{score}</span>
         <span className="font-body text-[10px] text-zinc-400 mt-1">dari 1000</span>
       </div>
     </div>
@@ -70,7 +128,32 @@ function HeroScoreRing() {
 
 const ScoreExplainabilityPage = () => {
   const [activeFilter, setActiveFilter] = useState('naik');
-  const currentFactors = activeFilter === 'menurun' ? factorsMenurun : activeFilter === 'naik' ? factorsNaik : [];
+  const [scoreData, setScoreData] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    scoreService.getExplainability()
+      .then((response) => {
+        if (isMounted) setScoreData(response.data.score);
+      })
+      .catch(() => {
+        if (isMounted) setScoreData(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentScore = scoreData?.score || 748;
+  const currentCategory = scoreData?.category || 'Cukup baik';
+  const updatedAt = getScoreDate(scoreData?.calculatedAt);
+  const positiveFactors = buildApiFactors(scoreData?.factors, 'naik');
+  const negativeFactors = buildApiFactors(scoreData?.factors, 'menurun');
+  const displayActionPlans = buildApiRecommendations(scoreData?.recommendations);
+  const currentFactors = activeFilter === 'menurun' ? negativeFactors : activeFilter === 'naik' ? positiveFactors : [];
+  const potentialIncrease = displayActionPlans.reduce((total, plan) => total + Number(plan.points || 0), 0);
 
   return (
     <>
@@ -80,7 +163,7 @@ const ScoreExplainabilityPage = () => {
         <div className="relative">
           <p className="font-body text-[11px] uppercase tracking-[0.18em] text-[#0092B3] font-medium">Skor & Explainability</p>
           <h1 className="font-heading font-bold text-[28px] sm:text-[34px] text-zinc-900 tracking-tight mt-2 leading-tight max-w-2xl">
-            Mengapa skormu <span className="text-[#0092B3]">748</span>?
+            Mengapa skormu <span className="text-[#0092B3]">{currentScore}</span>?
           </h1>
           <p className="font-body text-[13.5px] text-zinc-500 mt-3 max-w-xl leading-relaxed">
             Telusuri faktor yang mendorong dan menurunkan skor kreditmu, serta rencana aksi konkret untuk meningkatkannya.
@@ -88,11 +171,11 @@ const ScoreExplainabilityPage = () => {
           {/* KPI grid */}
           <div className="mt-10 grid grid-cols-2 lg:grid-cols-[1.1fr_1fr_1fr_1fr] gap-6 lg:gap-0 lg:divide-x lg:divide-zinc-200/60">
             <div className="lg:pr-8 flex items-center gap-5 col-span-2 lg:col-span-1">
-              <HeroScoreRing />
+              <HeroScoreRing score={currentScore} />
               <div>
                 <p className="font-body text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Skor saat ini</p>
-                <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-1.5">Cukup baik</p>
-                <p className="font-body text-[11.5px] text-zinc-500 mt-1">Diperbarui 12 Apr 2026</p>
+                <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-1.5">{currentCategory}</p>
+                <p className="font-body text-[11.5px] text-zinc-500 mt-1">Diperbarui {updatedAt}</p>
               </div>
             </div>
             <div className="lg:px-8">
@@ -100,7 +183,7 @@ const ScoreExplainabilityPage = () => {
                 <TrendingUp className="w-4 h-4" />
                 <p className="font-body text-[11px] uppercase tracking-wider font-medium">Potensi kenaikan</p>
               </div>
-              <p className="font-heading font-bold text-[30px] text-emerald-600 leading-none mt-3">+47</p>
+              <p className="font-heading font-bold text-[30px] text-emerald-600 leading-none mt-3">+{potentialIncrease || 47}</p>
               <p className="font-body text-[12px] text-zinc-500 mt-2">Jika semua aksi dijalankan</p>
             </div>
             <div className="lg:px-8">
@@ -108,7 +191,7 @@ const ScoreExplainabilityPage = () => {
                 <ArrowUpRight className="w-4 h-4" />
                 <p className="font-body text-[11px] uppercase tracking-wider font-medium">Faktor naik</p>
               </div>
-              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">5</p>
+              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">{positiveFactors.length}</p>
               <p className="font-body text-[12px] text-zinc-500 mt-2">Berkontribusi positif</p>
             </div>
             <div className="lg:px-8">
@@ -116,7 +199,7 @@ const ScoreExplainabilityPage = () => {
                 <ArrowDownRight className="w-4 h-4" />
                 <p className="font-body text-[11px] uppercase tracking-wider font-medium">Faktor menurun</p>
               </div>
-              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">3</p>
+              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">{negativeFactors.length}</p>
               <p className="font-body text-[12px] text-zinc-500 mt-2">Perlu diperbaiki</p>
             </div>
           </div>
@@ -218,7 +301,7 @@ const ScoreExplainabilityPage = () => {
               <h2 className="font-heading font-bold text-[20px] text-zinc-900 tracking-tight">Rencana aksi prioritas</h2>
               <p className="font-body text-[12.5px] text-zinc-500 mt-1 max-w-xl">Langkah-langkah konkret yang bisa kamu lakukan untuk meningkatkan skor.</p>
               <div className="mt-8 space-y-4">
-                {actionPlans.map((plan) => (
+                {displayActionPlans.map((plan) => (
                   <div key={plan.id} className="bg-white border border-zinc-100 rounded-2xl p-5 hover:border-zinc-200 hover:shadow-sm transition-all flex flex-col sm:flex-row items-start gap-4">
                     <div className="w-9 h-9 rounded-full bg-[#E6F7FA] flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="font-heading font-bold text-[13px] text-[#0092B3]">{plan.number}</span>
@@ -254,7 +337,7 @@ const ScoreExplainabilityPage = () => {
                   <Trophy className="w-4 h-4" />
                   <p className="font-body text-[11px] uppercase tracking-wider font-medium">Target skor</p>
                 </div>
-                <p className="font-heading font-bold text-[42px] text-[#00768F] leading-none mt-4">795</p>
+                <p className="font-heading font-bold text-[42px] text-[#00768F] leading-none mt-4">{Math.min(1000, currentScore + (potentialIncrease || 47))}</p>
                 <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-3 leading-snug">Jika semua langkah dilakukan, skor bisa mencapai 795 dalam 3 bulan.</p>
                 <p className="font-body text-[12px] text-zinc-600 mt-2 leading-relaxed">Skor 795 membuka akses ke produk pinjaman lebih luas dari mitra ModalIn.</p>
               </div>
@@ -263,8 +346,8 @@ const ScoreExplainabilityPage = () => {
                   <Sparkles className="w-4 h-4 text-emerald-500" />
                   <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">Potensi total</p>
                 </div>
-                <p className="font-heading font-bold text-[28px] text-emerald-600 leading-none mt-3">+47 poin</p>
-                <p className="font-body text-[12px] text-zinc-500 mt-2">Dari 4 rencana aksi</p>
+                <p className="font-heading font-bold text-[28px] text-emerald-600 leading-none mt-3">+{potentialIncrease || 47} poin</p>
+                <p className="font-body text-[12px] text-zinc-500 mt-2">Dari {displayActionPlans.length} rencana aksi</p>
               </div>
               <div className="border border-zinc-100 rounded-2xl p-5 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#E6F7FA] flex items-center justify-center">

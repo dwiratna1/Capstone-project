@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TrendingUp, Award, Calendar, Upload, CheckCircle2, XCircle, FileSpreadsheet, ArrowUpRight, Sparkles } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
+import { scoreService } from '../../services/scoreService';
 
 const chartData6 = [
   { month: 'Nov', score: 680 }, { month: 'Des', score: 695 }, { month: 'Jan', score: 712 },
@@ -26,6 +27,54 @@ const importEntries = [
   { nama: 'data_nov.csv', tanggal: '01 Des 2025', periode: 'Nov 2025', dampak: '—', status: 'Gagal', size: '0.9 MB' },
 ];
 
+const formatDate = (value) => {
+  if (!value) return 'Apr 2026';
+  return new Date(value).toLocaleDateString('id-ID', {
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatShortDate = (value) => {
+  if (!value) return '12 Apr 2026';
+  return new Date(value).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const mapHistoryToChart = (scores) => {
+  if (!Array.isArray(scores) || scores.length === 0) return chartData6;
+
+  return [...scores]
+    .reverse()
+    .slice(-6)
+    .map((score) => ({
+      month: formatDate(score.calculatedAt || score.createdAt),
+      score: score.score,
+    }));
+};
+
+const mapHistoryToLog = (scores) => {
+  if (!Array.isArray(scores) || scores.length === 0) return logEntries;
+
+  const orderedScores = [...scores].sort((a, b) => new Date(b.calculatedAt || b.createdAt) - new Date(a.calculatedAt || a.createdAt));
+
+  return orderedScores.map((score, index) => {
+    const nextScore = orderedScores[index + 1];
+    const delta = nextScore ? score.score - nextScore.score : null;
+
+    return {
+      periode: formatDate(score.calculatedAt || score.createdAt),
+      skor: score.score,
+      delta,
+      faktor: score.category || 'Skor berhasil dihitung',
+      status: score.breakdown ? 'Lengkap' : 'Sebagian',
+    };
+  });
+};
+
 function HeroSparkline() {
   return (
     <svg viewBox="0 0 200 60" className="w-full h-14" preserveAspectRatio="none">
@@ -44,7 +93,32 @@ function HeroSparkline() {
 const ScoreHistoryPage = () => {
   const [view, setView] = useState('grafik');
   const [range, setRange] = useState('6');
-  const data = range === '6' ? chartData6 : chartData1;
+  const [scores, setScores] = useState([]);
+  const historyChartData = mapHistoryToChart(scores);
+  const displayLogEntries = mapHistoryToLog(scores);
+  const data = range === '6' ? historyChartData : chartData1;
+  const hasScores = scores.length > 0;
+  const latestScore = scores[0]?.score || 748;
+  const firstScore = scores.length > 1 ? scores[scores.length - 1].score : hasScores ? latestScore : 680;
+  const totalDelta = latestScore - firstScore;
+  const averageDelta = scores.length > 1 ? Math.round(totalDelta / (scores.length - 1)) : 11;
+  const updatedAt = formatShortDate(scores[0]?.calculatedAt || scores[0]?.createdAt);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    scoreService.getScoreHistory()
+      .then((response) => {
+        if (isMounted) setScores(response.data.scores || []);
+      })
+      .catch(() => {
+        if (isMounted) setScores([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <>
@@ -54,26 +128,26 @@ const ScoreHistoryPage = () => {
         <div className="relative">
           <p className="font-body text-[11px] uppercase tracking-[0.18em] text-[#0092B3] font-medium">Riwayat skor</p>
           <h1 className="font-heading font-bold text-[28px] sm:text-[34px] text-zinc-900 tracking-tight mt-2 leading-tight max-w-2xl">
-            Skormu naik <span className="text-[#0092B3]">+68 poin</span> dalam 6 bulan terakhir.
+            Skormu naik <span className="text-[#0092B3]">{totalDelta >= 0 ? '+' : ''}{totalDelta} poin</span> dalam 6 bulan terakhir.
           </h1>
           <p className="font-body text-[13.5px] text-zinc-500 mt-3 max-w-xl leading-relaxed">Pantau perkembangan skor kredit, telusuri faktor pendorong, dan tambahkan data keuangan historismu.</p>
           <div className="mt-10 grid grid-cols-2 lg:grid-cols-[1.1fr_1fr_1fr_1fr] gap-6 lg:gap-0 lg:divide-x lg:divide-zinc-200/60">
             <div className="lg:pr-8 col-span-2 lg:col-span-1">
               <div className="flex items-baseline gap-2">
-                <span className="font-heading font-bold text-[48px] sm:text-[56px] text-zinc-900 leading-none tracking-tight">748</span>
+                <span className="font-heading font-bold text-[48px] sm:text-[56px] text-zinc-900 leading-none tracking-tight">{latestScore}</span>
                 <span className="font-body text-[13px] text-zinc-400">/ 1000</span>
               </div>
-              <p className="font-body text-[12px] text-zinc-500 mt-2">Skor saat ini · diperbarui 12 Apr 2026</p>
+              <p className="font-body text-[12px] text-zinc-500 mt-2">Skor saat ini · diperbarui {updatedAt}</p>
               <div className="mt-4"><HeroSparkline /></div>
             </div>
             <div className="lg:px-8">
               <div className="flex items-center gap-2 text-emerald-600"><TrendingUp className="w-4 h-4" /><p className="font-body text-[11px] uppercase tracking-wider font-medium">Kenaikan 6 bulan</p></div>
-              <p className="font-heading font-bold text-[30px] text-emerald-600 leading-none mt-3">+68</p>
+              <p className="font-heading font-bold text-[30px] text-emerald-600 leading-none mt-3">{totalDelta >= 0 ? '+' : ''}{totalDelta}</p>
               <p className="font-body text-[12px] text-zinc-500 mt-2">Nov 2025 — Apr 2026</p>
             </div>
             <div className="lg:px-8">
               <div className="flex items-center gap-2 text-zinc-700"><Calendar className="w-4 h-4" /><p className="font-body text-[11px] uppercase tracking-wider font-medium">Rata-rata</p></div>
-              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">+11<span className="font-body text-[14px] text-zinc-400 font-normal"> /bln</span></p>
+              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">{averageDelta >= 0 ? '+' : ''}{averageDelta}<span className="font-body text-[14px] text-zinc-400 font-normal"> /bln</span></p>
               <p className="font-body text-[12px] text-zinc-500 mt-2">Konsisten 6 bulan beruntun</p>
             </div>
             <div className="lg:px-8">
@@ -140,7 +214,7 @@ const ScoreHistoryPage = () => {
                 <h2 className="font-heading font-bold text-[20px] text-zinc-900 tracking-tight mb-1">Linimasa perubahan</h2>
                 <p className="font-body text-[12.5px] text-zinc-500 mb-7">Setiap titik adalah perubahan skor bulanan beserta faktor pendorongnya</p>
                 <ol className="relative pl-6 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-zinc-200">
-                  {logEntries.map((entry, i) => (
+                  {displayLogEntries.map((entry, i) => (
                     <li key={i} className="relative pb-7 last:pb-0">
                       <span className={`absolute -left-[22px] top-1.5 w-[14px] h-[14px] rounded-full border-2 border-white ring-1 ${entry.delta && entry.delta > 0 ? 'bg-[#0092B3] ring-[#0092B3]/40' : 'bg-zinc-300 ring-zinc-200'}`} />
                       <div className="flex items-baseline justify-between gap-4 flex-wrap">
@@ -170,12 +244,12 @@ const ScoreHistoryPage = () => {
               </div>
               <div className="border border-zinc-100 rounded-2xl p-5">
                 <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">Skor tertinggi</p>
-                <p className="font-heading font-bold text-[26px] text-zinc-900 leading-none mt-2">748</p>
+                <p className="font-heading font-bold text-[26px] text-zinc-900 leading-none mt-2">{latestScore}</p>
                 <p className="font-body text-[12px] text-zinc-500 mt-1.5">April 2026 · skor saat ini</p>
               </div>
               <div className="border border-zinc-100 rounded-2xl p-5">
                 <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">Skor awal</p>
-                <p className="font-heading font-bold text-[26px] text-zinc-900 leading-none mt-2">680</p>
+                <p className="font-heading font-bold text-[26px] text-zinc-900 leading-none mt-2">{firstScore}</p>
                 <p className="font-body text-[12px] text-zinc-500 mt-1.5">November 2025 · saat registrasi</p>
               </div>
             </aside>

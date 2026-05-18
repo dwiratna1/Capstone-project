@@ -34,6 +34,16 @@ export const profileService = {
     const response = await api.put('/profile/business', data);
     return response.data;
   },
+
+  /**
+   * Update financial information.
+   * @param {Object} data - Financial info fields
+   * @returns {Promise} Updated profile data
+   */
+  updateFinancialInfo: async (data) => {
+    const response = await api.put('/profile/financial', data);
+    return response.data;
+  },
 };
 
 export default profileService;

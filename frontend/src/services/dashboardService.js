@@ -7,6 +7,15 @@ import api from './api';
 
 export const dashboardService = {
   /**
+   * Get complete dashboard data.
+   * @returns {Promise} Dashboard data
+   */
+  getDashboard: async () => {
+    const response = await api.get('/dashboard');
+    return response.data;
+  },
+
+  /**
    * Get dashboard summary data.
    * @returns {Promise} Dashboard overview data
    */

@@ -11,8 +11,8 @@ export const scoreService = {
    * @param {Object} data - Business and financial data
    * @returns {Promise} Scoring result
    */
-  submitForScoring: async (data) => {
-    const response = await api.post('/score/analyze', data);
+  submitForScoring: async () => {
+    const response = await api.post('/scores/calculate');
     return response.data;
   },
 
@@ -21,7 +21,7 @@ export const scoreService = {
    * @returns {Promise} Score details and 5C breakdown
    */
   getLatestScore: async () => {
-    const response = await api.get('/score/latest');
+    const response = await api.get('/scores/current');
     return response.data;
   },
 
@@ -30,7 +30,16 @@ export const scoreService = {
    * @returns {Promise} List of historical scores
    */
   getScoreHistory: async () => {
-    const response = await api.get('/score/history');
+    const response = await api.get('/scores/history');
+    return response.data;
+  },
+
+  /**
+   * Get latest score explainability data.
+   * @returns {Promise} Score details, factors, and recommendations
+   */
+  getExplainability: async () => {
+    const response = await api.get('/scores/explainability');
     return response.data;
   },
 
@@ -39,11 +48,8 @@ export const scoreService = {
    * @param {FormData} formData - File upload data
    * @returns {Promise} Import result
    */
-  importFinancialData: async (formData) => {
-    const response = await api.post('/score/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+  importFinancialData: async () => {
+    throw new Error('Financial import endpoint is not available yet.');
   },
 };
 

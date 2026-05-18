@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   MapPin,
@@ -17,6 +17,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { profileService } from "../../services/profileService";
 
 
 const tabs = [
@@ -38,6 +39,7 @@ function Field({ label, value, helper, readOnly }) {
     <div>
       <label className="font-body text-[12px] text-zinc-500 font-medium">{label}</label>
       <input
+        key={value}
         defaultValue={value}
         readOnly={readOnly}
         className={`mt-1.5 w-full font-body text-[13px] text-zinc-900 px-3.5 py-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-[#0092B3] focus:ring-2 focus:ring-[#0092B3]/15 transition-all ${
@@ -106,8 +108,100 @@ const checklist = [
   { title: "Foto profil usaha", desc: "Belum ada foto profil yang diunggah", done: false },
 ];
 
+const businessAgeLabels = {
+  LESS_THAN_1_YEAR: "<1 tahun",
+  ONE_TO_TWO_YEARS: "1-2 tahun",
+  THREE_TO_FIVE_YEARS: "3-5 tahun",
+  MORE_THAN_5_YEARS: ">5 tahun",
+};
+
+const transactionRangeSelectValues = {
+  LESS_THAN_10: "0-50",
+  TEN_TO_FIFTY: "0-50",
+  FIFTY_TO_TWO_HUNDRED: "50-200",
+  TWO_HUNDRED_TO_FIVE_HUNDRED: "200-500",
+  MORE_THAN_FIVE_HUNDRED: "500+",
+};
+
+const formatMoneyInput = (value, fallback = "0") => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return number.toLocaleString("id-ID");
+};
+
+const getJoinYear = (value) => {
+  if (!value) return "2026";
+  return new Date(value).getFullYear();
+};
+
+const countByCategory = (platforms, category) => {
+  return platforms.filter((platform) => platform.category === category && platform.status === "CONNECTED").length;
+};
+
 const ProfilePage = () => {
   const [tab, setTab] = useState("usaha");
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    profileService.getProfile()
+      .then((response) => {
+        if (isMounted) setProfile(response.data);
+      })
+      .catch(() => {
+        if (isMounted) setProfile(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const user = profile?.user;
+  const businessProfile = profile?.businessProfile;
+  const financialProfile = profile?.financialProfile;
+  const platforms = profile?.platforms || [];
+  const completionPercent = profile?.completion?.percentage ?? 74;
+  const remainingPercent = Math.max(0, 100 - completionPercent);
+  const marketplaceCount = countByCategory(platforms, "MARKETPLACE");
+  const ewalletCount = countByCategory(platforms, "EWALLET");
+  const bankCount = countByCategory(platforms, "BANK");
+  const displayPlatformList = platformList.map((platform) => {
+    const provider = platform.nama.startsWith("GoPay")
+      ? "GOPAY"
+      : platform.nama.startsWith("OVO")
+        ? "OVO"
+        : platform.nama.startsWith("DANA")
+          ? "DANA"
+          : "BANK";
+
+    return {
+      ...platform,
+      connected: platforms.some((item) => item.provider === provider && item.status === "CONNECTED"),
+    };
+  });
+  const displayChecklist = [
+    { title: "Identitas pemilik", desc: "Nama lengkap sudah terisi", done: Boolean(user?.name) },
+    { title: "Profil bisnis dasar", desc: "Nama usaha, sektor, lama berjualan, alamat", done: Boolean(businessProfile) },
+    { title: "Data keuangan dasar", desc: "Omzet, pengeluaran, estimasi aset sudah diisi", done: Boolean(financialProfile) },
+    { title: "Marketplace terhubung", desc: marketplaceCount > 0 ? `${marketplaceCount} marketplace sudah terhubung` : "Marketplace belum terhubung", done: marketplaceCount > 0 },
+    { title: "E-wallet terhubung", desc: ewalletCount > 0 ? `${ewalletCount} e-wallet sudah terhubung` : "GoPay, OVO, atau DANA belum terhubung", done: ewalletCount > 0 },
+    { title: "Foto profil usaha", desc: "Belum ada foto profil yang diunggah", done: false },
+  ];
+  const displayComposition = [
+    { name: "Data keuangan", value: financialProfile ? 38 : 0, color: "#10B981" },
+    { name: "Platform", value: platforms.length > 0 ? 28 : 0, color: "#0092B3" },
+    { name: "Profil", value: businessProfile ? 22 : 0, color: "#B45309" },
+    { name: "Belum terisi", value: Math.max(0, 100 - completionPercent), color: "#E4E4E7" },
+  ];
+  const expenseRatio = financialProfile?.monthlyRevenue
+    ? Math.round((Number(financialProfile.monthlyExpense || 0) / Number(financialProfile.monthlyRevenue)) * 100)
+    : 67;
+  const debtRatio = financialProfile?.monthlyRevenue
+    ? Math.round((Number(financialProfile.declaredDebt || 0) / Number(financialProfile.monthlyRevenue)) * 100)
+    : 0;
+  const netIncome = Number(financialProfile?.monthlyRevenue || 8200000) - Number(financialProfile?.monthlyExpense || 5500000);
 
   return (
     <>
@@ -122,7 +216,7 @@ const ProfilePage = () => {
 
               <div className="mt-4 flex items-center gap-7">
                 <div className="relative">
-                  <AvatarWithRing percent={74}>
+                  <AvatarWithRing percent={completionPercent}>
                     <div className="w-full h-full bg-gradient-to-br from-[#E6F7FA] to-[#B8E4ED] flex items-center justify-center">
                       <User className="w-10 h-10 text-[#0092B3]" />
                     </div>
@@ -134,24 +228,24 @@ const ProfilePage = () => {
 
                 <div className="min-w-0 flex-1">
                   <h1 className="font-heading font-bold text-[28px] text-zinc-900 tracking-tight leading-tight">
-                    Dwi Ratna
+                    {user?.name || "Dwi Ratna"}
                   </h1>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[12.5px] text-zinc-500">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5" />
-                      Bergabung sejak 2026
+                      Bergabung sejak {getJoinYear(user?.createdAt)}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5" />
-                      Kabupaten Banyuwangi
+                      {businessProfile?.address || "Kabupaten Banyuwangi"}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Store className="w-3.5 h-3.5" />
-                      Sego Tempong Mak Sus
+                      {businessProfile?.businessName || "Sego Tempong Mak Sus"}
                     </span>
                   </div>
                   <p className="font-body text-[11.5px] text-zinc-400 mt-3">
-                    Profil terisi · lengkapi 26% lagi untuk skor yang lebih akurat
+                    Profil terisi · lengkapi {remainingPercent}% lagi untuk skor yang lebih akurat
                   </p>
                 </div>
               </div>
@@ -197,24 +291,25 @@ const ProfilePage = () => {
                     <div className="md:col-span-2">
                       <Field
                         label="Id Usaha"
-                        value="12345"
+                        value={businessProfile?.id || "12345"}
                         helper="Dibuat otomatis oleh sistem · tidak dapat diubah"
                         readOnly
                       />
                     </div>
-                    <Field label="Nama usaha" value="sego tempong mak sus" />
-                    <Field label="Nama pemilik" value="Dwi Ratna" />
-                    <Field label="Jenis usaha" value="Kuliner / F&B" />
-                    <Field label="Lama berdiri" value="1-2 tahun" />
+                    <Field label="Nama usaha" value={businessProfile?.businessName || "sego tempong mak sus"} />
+                    <Field label="Nama pemilik" value={businessProfile?.ownerName || user?.name || "Dwi Ratna"} />
+                    <Field label="Jenis usaha" value={businessProfile?.businessType || "Kuliner / F&B"} />
+                    <Field label="Lama berdiri" value={businessAgeLabels[businessProfile?.businessAge] || "1-2 tahun"} />
                     <div className="md:col-span-2">
-                      <Field label="Alamat usaha" value="Jl. Nusantara No. 14, Jember, Jawa Timur" />
+                      <Field label="Alamat usaha" value={businessProfile?.address || "Jl. Nusantara No. 14, Jember, Jawa Timur"} />
                     </div>
                     <div className="md:col-span-2">
                       <label className="font-body text-[12px] text-zinc-500 font-medium">
                         Deskripsi singkat usaha
                       </label>
                       <textarea
-                        defaultValue="Warung makan yang menyajikan masakan rumahan Jawa Timur, melayani makan di tempat dan pesan antar sejak 2023."
+                        key={businessProfile?.description}
+                        defaultValue={businessProfile?.description || "Warung makan yang menyajikan masakan rumahan Jawa Timur, melayani makan di tempat dan pesan antar sejak 2023."}
                         rows={3}
                         className="mt-1.5 w-full font-body text-[13px] text-zinc-900 px-3.5 py-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-[#0092B3] focus:ring-2 focus:ring-[#0092B3]/15 resize-none transition-all"
                       />
@@ -256,7 +351,7 @@ const ProfilePage = () => {
                               paddingAngle={2}
                               stroke="none"
                             >
-                              {composition.map((entry, i) => (
+                              {displayComposition.map((entry, i) => (
                                 <Cell key={i} fill={entry.color} />
                               ))}
                             </Pie>
@@ -264,7 +359,7 @@ const ProfilePage = () => {
                         </ResponsiveContainer>
                       </div>
                       <ul className="space-y-2.5 flex-1">
-                        {composition.map((c) => (
+                        {displayComposition.map((c) => (
                           <li key={c.name} className="flex items-center justify-between gap-3 text-[12px]">
                             <span className="flex items-center gap-2 text-zinc-700">
                               <span className="w-2.5 h-2.5 rounded-sm" style={{ background: c.color }} />
@@ -279,7 +374,7 @@ const ProfilePage = () => {
 
                   <div className="bg-gradient-to-br from-[#E6F7FA] to-[#F0FAFC] border border-[#0092B3]/15 rounded-2xl p-5">
                     <p className="font-heading font-semibold text-[14px] text-zinc-900 leading-snug">
-                      Lengkapi 26% sisa untuk skor yang lebih akurat
+                      Lengkapi {remainingPercent}% sisa untuk skor yang lebih akurat
                     </p>
                     <p className="font-body text-[12px] text-zinc-600 mt-2 leading-relaxed">
                       Profil yang lengkap membantu AI Modalin memberikan rekomendasi pinjaman yang lebih sesuai dengan profil usahamu.
@@ -302,22 +397,22 @@ const ProfilePage = () => {
                   <div className="mt-7 grid grid-cols-1 md:grid-cols-2 gap-5">
                     <Field
                       label="Rata-rata omzet bulanan (Rp)"
-                      value="8.200.000"
+                      value={formatMoneyInput(financialProfile?.monthlyRevenue, "8.200.000")}
                       helper="Total pendapatan masuk per bulan"
                     />
                     <Field
                       label="Estimasi total aset usaha (Rp)"
-                      value="15.000.000"
+                      value={formatMoneyInput(financialProfile?.estimatedAssets, "15.000.000")}
                       helper="Rentang Rp1.000 — Rp200.000.000"
                     />
                     <Field
                       label="Rata-rata pengeluaran bulanan (Rp)"
-                      value="5.500.000"
+                      value={formatMoneyInput(financialProfile?.monthlyExpense, "5.500.000")}
                       helper="Bahan baku, sewa tempat, gaji karyawan"
                     />
                     <Field
                       label="Total utang yang dideklarasikan (Rp)"
-                      value="0"
+                      value={formatMoneyInput(financialProfile?.declaredDebt, "0")}
                       helper="Total cicilan aktif di tempat lain"
                     />
                     <div className="md:col-span-2">
@@ -325,7 +420,8 @@ const ProfilePage = () => {
                         Frekuensi transaksi digital per bulan
                       </label>
                       <select
-                        defaultValue="50-200"
+                        key={financialProfile?.transactionRange}
+                        defaultValue={transactionRangeSelectValues[financialProfile?.transactionRange] || "50-200"}
                         className="mt-1.5 w-full font-body text-[13px] text-zinc-900 px-3.5 py-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-[#0092B3] focus:ring-2 focus:ring-[#0092B3]/15 bg-white transition-all"
                       >
                         <option value="0-50">0 – 50 transaksi</option>
@@ -364,9 +460,9 @@ const ProfilePage = () => {
                     <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">
                       Rasio pengeluaran
                     </p>
-                    <p className="font-heading font-bold text-[28px] text-zinc-900 leading-none mt-2">67%</p>
+                    <p className="font-heading font-bold text-[28px] text-zinc-900 leading-none mt-2">{expenseRatio}%</p>
                     <div className="mt-3 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: "67%" }} />
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(expenseRatio, 100)}%` }} />
                     </div>
                     <p className="font-body text-[12px] text-emerald-600 mt-2">
                       ✓ Target &lt; 70%
@@ -378,7 +474,7 @@ const ProfilePage = () => {
                       Estimasi laba bersih
                     </p>
                     <p className="font-heading font-bold text-[28px] text-emerald-600 leading-none mt-2">
-                      Rp 2,7 jt
+                      Rp {(netIncome / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt
                     </p>
                     <p className="font-body text-[12px] text-zinc-500 mt-2">per bulan</p>
                   </div>
@@ -387,9 +483,9 @@ const ProfilePage = () => {
                     <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">
                       Rasio utang / omzet
                     </p>
-                    <p className="font-heading font-bold text-[28px] text-zinc-900 leading-none mt-2">0%</p>
+                    <p className="font-heading font-bold text-[28px] text-zinc-900 leading-none mt-2">{debtRatio}%</p>
                     <div className="mt-3 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: "0%" }} />
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(debtRatio, 100)}%` }} />
                     </div>
                     <p className="font-body text-[12px] text-emerald-600 mt-2">
                       ✓ Ideal &lt; 30%
@@ -477,7 +573,7 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="mt-5 space-y-3">
-                      {platformList.map((p) => (
+                      {displayPlatformList.map((p) => (
                         <div
                           key={p.nama}
                           className="flex items-center gap-4 p-4 border border-zinc-100 rounded-xl hover:border-zinc-200 hover:shadow-sm transition-all"
@@ -490,7 +586,7 @@ const ProfilePage = () => {
                             <p className="font-body text-[11.5px] text-zinc-500 mt-0.5">{p.desc}</p>
                           </div>
                           <button className="px-4 py-2 rounded-lg border border-zinc-200 text-[12px] font-medium text-zinc-700 hover:border-[#0092B3]/40 hover:text-[#0092B3] hover:bg-[#F0FAFC]/40 transition-all flex items-center gap-1.5">
-                            Hubungkan Akun
+                            {p.connected ? "Terhubung" : "Hubungkan Akun"}
                             <ArrowRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -525,21 +621,21 @@ const ProfilePage = () => {
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                           Marketplace
                         </span>
-                        <span className="font-heading font-semibold text-emerald-600">1 / 3</span>
+                        <span className="font-heading font-semibold text-emerald-600">{marketplaceCount} / 3</span>
                       </div>
                       <div className="flex items-center justify-between text-[12.5px]">
                         <span className="text-zinc-700 flex items-center gap-2">
                           <Circle className="w-3.5 h-3.5 text-zinc-300" />
                           E-wallet
                         </span>
-                        <span className="font-heading font-semibold text-zinc-400">0 / 3</span>
+                        <span className="font-heading font-semibold text-zinc-400">{ewalletCount} / 3</span>
                       </div>
                       <div className="flex items-center justify-between text-[12.5px]">
                         <span className="text-zinc-700 flex items-center gap-2">
                           <Circle className="w-3.5 h-3.5 text-zinc-300" />
                           Bank
                         </span>
-                        <span className="font-heading font-semibold text-zinc-400">0 / 1</span>
+                        <span className="font-heading font-semibold text-zinc-400">{bankCount} / 1</span>
                       </div>
                     </div>
                   </div>
@@ -561,22 +657,22 @@ const ProfilePage = () => {
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-body text-[12px] text-zinc-500">Progress</span>
-                      <span className="font-heading font-bold text-[18px] text-[#0092B3]">74%</span>
+                      <span className="font-heading font-bold text-[18px] text-[#0092B3]">{completionPercent}%</span>
                     </div>
                     <div className="h-2.5 bg-zinc-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-[#0092B3] to-[#4FC3DC] rounded-full"
-                        style={{ width: "74%" }}
+                        style={{ width: `${completionPercent}%` }}
                       />
                     </div>
                     <p className="font-body text-[11.5px] text-zinc-400 mt-2">
-                      4 dari 6 item sudah selesai · 2 langkah lagi menuju profil lengkap
+                      {displayChecklist.filter((item) => item.done).length} dari {displayChecklist.length} item sudah selesai · {displayChecklist.filter((item) => !item.done).length} langkah lagi menuju profil lengkap
                     </p>
                   </div>
 
                   {/* Items */}
                   <ol className="mt-8 space-y-3">
-                    {checklist.map((item, i) => (
+                    {displayChecklist.map((item, i) => (
                       <li
                         key={i}
                         className={`flex items-center gap-4 p-4 border rounded-xl transition-all ${
@@ -624,7 +720,7 @@ const ProfilePage = () => {
                     <div className="flex items-center gap-2 text-[#00768F]">
                       <Sparkles className="w-4 h-4" />
                       <p className="font-body text-[11px] uppercase tracking-wider font-medium">
-                        2 langkah lagi
+                        {displayChecklist.filter((item) => !item.done).length} langkah lagi
                       </p>
                     </div>
                     <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-3 leading-snug">

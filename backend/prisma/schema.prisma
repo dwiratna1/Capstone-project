@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BusinessAgeRange {
+  LESS_THAN_1_YEAR
+  ONE_TO_TWO_YEARS
+  THREE_TO_FIVE_YEARS
+  MORE_THAN_5_YEARS
+}
+
+enum TransactionRange {
+  LESS_THAN_10
+  TEN_TO_FIFTY
+  FIFTY_TO_TWO_HUNDRED
+  TWO_HUNDRED_TO_FIVE_HUNDRED
+  MORE_THAN_FIVE_HUNDRED
+}
+
+enum PlatformProvider {
+  SHOPEE
+  TOKOPEDIA
+  GOJEK
+  GRAB
+  TIKTOK_SHOP
+  LAZADA
+  GOPAY
+  OVO
+  DANA
+  BANK
+  OFFLINE_STORE
+  OTHER
+}
+
+enum PlatformCategory {
+  MARKETPLACE
+  EWALLET
+  BANK
+  OFFLINE
+  OTHER
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+}
+
+enum CreditScoreStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum FiveCDimension {
+  CHARACTER
+  CAPACITY
+  CONDITION
+  CAPITAL
+  COLLATERAL
+}
+
+enum ImpactType {
+  POSITIVE
+  NEGATIVE
+}
+
+enum RecommendationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RecommendationStatus {
+  OPEN
+  DONE
+  SKIPPED
+}
+
+enum ImportStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id               String              @id @default(cuid())
+  name             String
+  email            String              @unique
+  phone            String?
+  passwordHash     String
+  businessProfile  BusinessProfile?
+  financialProfile FinancialProfile?
+  platforms        ConnectedPlatform[]
+  creditScores     CreditScore[]
+  financialImports FinancialImport[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([email])
+}
+
+model BusinessProfile {
+  id           String           @id @default(cuid())
+  userId       String           @unique
+  businessName String
+  ownerName    String
+  businessType String
+  businessAge  BusinessAgeRange
+  address      String?
+  description  String?
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model FinancialProfile {
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  monthlyRevenue   Decimal          @db.Decimal(14, 2)
+  monthlyExpense   Decimal          @db.Decimal(14, 2)
+  estimatedAssets  Decimal          @db.Decimal(14, 2)
+  declaredDebt     Decimal          @default(0) @db.Decimal(14, 2)
+  transactionRange TransactionRange
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model ConnectedPlatform {
+  id          String           @id @default(cuid())
+  userId      String
+  provider    PlatformProvider
+  category    PlatformCategory
+  status      ConnectionStatus @default(DISCONNECTED)
+  accountName String?
+  accountUrl  String?
+  rating      Decimal?         @db.Decimal(3, 2)
+  metadata    Json?
+  connectedAt DateTime?
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId, category])
+  @@index([status])
+}
+
+model CreditScore {
+  id              String            @id @default(cuid())
+  userId          String
+  score           Int?
+  category        String?
+  status          CreditScoreStatus @default(PENDING)
+  modelVersion    String?
+  calculatedAt    DateTime?
+  failedReason    String?
+  rawAiResponse   Json?
+  inputSnapshot   Json?
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  breakdown       ScoreBreakdown?
+  factors         ScoreFactor[]
+  recommendations Recommendation[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model ScoreBreakdown {
+  id            String      @id @default(cuid())
+  creditScoreId String      @unique
+  character     Int
+  capacity      Int
+  condition     Int
+  capital       Int
+  collateral    Int
+  creditScore   CreditScore @relation(fields: [creditScoreId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model ScoreFactor {
+  id            String         @id @default(cuid())
+  creditScoreId String
+  dimension     FiveCDimension
+  impactType    ImpactType
+  title         String
+  description   String?
+  impactPoints  Int
+  weight        Decimal?       @db.Decimal(5, 2)
+  creditScore   CreditScore    @relation(fields: [creditScoreId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([creditScoreId, impactType])
+  @@index([dimension])
+}
+
+model Recommendation {
+  id              String                 @id @default(cuid())
+  creditScoreId   String
+  title           String
+  description     String?
+  dimension       FiveCDimension?
+  priority        RecommendationPriority @default(MEDIUM)
+  status          RecommendationStatus   @default(OPEN)
+  estimatedPoints Int?
+  actionLabel     String?
+  metadata        Json?
+  creditScore     CreditScore            @relation(fields: [creditScoreId], references: [id], onDelete: Cascade)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([creditScoreId, status])
+  @@index([priority])
+}
+
+model FinancialImport {
+  id           String       @id @default(cuid())
+  userId       String
+  fileName     String
+  fileType     String?
+  fileSize     Int?
+  periodLabel  String?
+  storagePath  String?
+  status       ImportStatus @default(PENDING)
+  impactPoints Int?
+  errorMessage String?
+  metadata     Json?
+  importedAt   DateTime?
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}

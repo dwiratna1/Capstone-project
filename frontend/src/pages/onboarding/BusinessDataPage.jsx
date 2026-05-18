@@ -2,20 +2,42 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import CustomSelect from "../../components/ui/CustomSelect";
+import { onboardingService } from "../../services/onboardingService";
 
 const BusinessDataPage = () => {
   const navigate = useNavigate();
   const [platforms, setPlatforms] = useState(["Shopee", "Gojek", "Tokopedia", ""]);
+  const [businessName, setBusinessName] = useState("");
+  const [estimatedAssets, setEstimatedAssets] = useState("");
   const [jenisUsaha, setJenisUsaha] = useState("Kuliner / F&B");
   const [lamaBerdiri, setLamaBerdiri] = useState("<1 tahun");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const setPlatform = (i, val) => {
     setPlatforms((p) => p.map((x, idx) => (idx === i ? val : x)));
   };
 
-  const handleNext = (e) => {
+  const handleNext = async (e) => {
     e.preventDefault();
-    navigate(ROUTES.ONBOARDING_FINANCIAL);
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await onboardingService.saveBusinessData({
+        businessName,
+        businessType: jenisUsaha,
+        businessAge: lamaBerdiri,
+        platforms: platforms.filter(Boolean),
+      });
+
+      sessionStorage.setItem("modalin_estimated_assets", estimatedAssets);
+      navigate(ROUTES.ONBOARDING_FINANCIAL);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || "Gagal menyimpan data usaha. Coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -48,6 +70,8 @@ const BusinessDataPage = () => {
           <input
             type="text"
             placeholder="Contoh: Warung Makan Bu Sari"
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
             className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
             required
           />
@@ -105,10 +129,18 @@ const BusinessDataPage = () => {
           <input
             type="text"
             placeholder="Contoh: 15.000.000"
+            value={estimatedAssets}
+            onChange={(e) => setEstimatedAssets(e.target.value)}
             className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
             required
           />
         </div>
+
+        {errorMessage && (
+          <p className="text-sm text-red-600">
+            {errorMessage}
+          </p>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-8">
@@ -121,9 +153,10 @@ const BusinessDataPage = () => {
           </button>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="px-8 py-2.5 rounded-lg bg-[#0092B3] hover:bg-[#007F9E] text-white font-medium text-sm transition-colors shadow-sm"
           >
-            Lanjutkan
+            {isSubmitting ? "Menyimpan..." : "Lanjutkan"}
           </button>
         </div>
       </form>

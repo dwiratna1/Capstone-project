@@ -3,17 +3,41 @@ import { ImageUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import CustomSelect from "../../components/ui/CustomSelect";
+import { onboardingService } from "../../services/onboardingService";
 
 const FinancialDataPage = () => {
   const navigate = useNavigate();
   const [transaksi, setTransaksi] = useState("<10 transaksi");
+  const [monthlyRevenue, setMonthlyRevenue] = useState("");
+  const [monthlyExpense, setMonthlyExpense] = useState("");
+  const [declaredDebt, setDeclaredDebt] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate(ROUTES.DASHBOARD);
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await onboardingService.saveFinancialData({
+        monthlyRevenue,
+        monthlyExpense,
+        estimatedAssets: sessionStorage.getItem("modalin_estimated_assets") || "0",
+        declaredDebt,
+        transactionRange: transaksi,
+      });
+
+      sessionStorage.removeItem("modalin_estimated_assets");
+      navigate(ROUTES.DASHBOARD);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || "Gagal menyimpan data keuangan. Coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const InputField = ({ label, placeholder, hint, required = true, optional = false }) => (
+  const InputField = ({ label, placeholder, hint, required = true, optional = false, value, onChange }) => (
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-zinc-800">
         {label} {required && <span className="text-red-500">*</span>}
@@ -22,7 +46,10 @@ const FinancialDataPage = () => {
       <input
         type="text"
         placeholder={placeholder}
+        value={value}
+        onChange={onChange}
         className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
+        required={required}
       />
       {hint && <p className="text-xs text-zinc-500">{hint}</p>}
     </div>
@@ -57,11 +84,15 @@ const FinancialDataPage = () => {
           <InputField
             label="Rata-rata omzet bulanan (Rp)"
             placeholder="8.000.000"
+            value={monthlyRevenue}
+            onChange={(e) => setMonthlyRevenue(e.target.value)}
             hint="*Range ideal: Rp5.000.000 – Rp150.000.000 (Fintech menyasar Unbanked UMKM)"
           />
           <InputField
             label="Rata-rata pengeluaran bulanan (Rp)"
             placeholder="5.500.000"
+            value={monthlyExpense}
+            onChange={(e) => setMonthlyExpense(e.target.value)}
             hint="*Termasuk biaya bahan baku, sewa tempat, dan gaji karyawan."
           />
         </div>
@@ -89,6 +120,8 @@ const FinancialDataPage = () => {
         <InputField
           label="Total utang yang dideklarasikan (Rp)"
           placeholder="0 jika tidak ada"
+          value={declaredDebt}
+          onChange={(e) => setDeclaredDebt(e.target.value)}
           hint="*Range ideal: Rp1.000.000 – Rp100.000.000 (Rasio utang harus masuk akal terhadap omzet)"
         />
 
@@ -113,6 +146,12 @@ const FinancialDataPage = () => {
           </p>
         </div>
 
+        {errorMessage && (
+          <p className="text-sm text-red-600">
+            {errorMessage}
+          </p>
+        )}
+
         {/* Actions */}
         <div className="flex items-center justify-center gap-4 pt-6">
           <button
@@ -124,9 +163,10 @@ const FinancialDataPage = () => {
           </button>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="px-10 py-2.5 rounded-lg bg-[#0092B3] hover:bg-[#007F9E] text-white font-medium text-sm transition-colors shadow-sm"
           >
-            Daftar
+            {isSubmitting ? "Menyimpan..." : "Daftar"}
           </button>
         </div>
       </form>

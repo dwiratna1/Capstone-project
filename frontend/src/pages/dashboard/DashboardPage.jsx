@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp, Sparkles, ArrowUpRight, Wallet, Receipt, Smartphone, ShieldCheck, Target, Trophy, Lightbulb, ChevronRight, Activity, Bell, CheckCircle2, Zap } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from 'recharts';
+import { dashboardService } from '../../services/dashboardService';
 
 const trend = [
   { m: 'Nov', s: 680 }, { m: 'Des', s: 695 }, { m: 'Jan', s: 712 },
@@ -50,7 +52,112 @@ const activityData = [
   { time: '5 hari lalu', icon: Sparkles, text: 'Rekomendasi baru tersedia', tag: 'Insight', color: '#0092B3' },
 ];
 
+const formatCurrencyShort = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return 'Rp 0';
+  if (number >= 1000000) {
+    return `Rp ${(number / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}jt`;
+  }
+
+  return `Rp ${number.toLocaleString('id-ID')}`;
+};
+
+const formatDate = (value, fallback = 'belum dihitung') => {
+  if (!value) return fallback;
+
+  return new Date(value).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const getMonthLabel = (value) => {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('id-ID', { month: 'short' });
+};
+
+const buildDisplayBreakdown = (apiBreakdown) => {
+  if (!apiBreakdown) return breakdown;
+
+  return [
+    { label: 'Capacity', value: apiBreakdown.capacity, color: '#0092B3', note: 'Kemampuan bayar' },
+    { label: 'Character', value: apiBreakdown.character, color: '#0092B3', note: 'Histori kredit' },
+    { label: 'Condition', value: apiBreakdown.condition, color: '#00B4D8', note: 'Kondisi usaha' },
+    { label: 'Capital', value: apiBreakdown.capital, color: '#F59E0B', note: 'Modal & aset' },
+    { label: 'Collateral', value: apiBreakdown.collateral, color: '#F97316', note: 'Jaminan' },
+  ];
+};
+
+const buildDisplayRecommendations = (recommendations) => {
+  if (!Array.isArray(recommendations) || recommendations.length === 0) return recs;
+
+  return recommendations.slice(0, 3).map((recommendation, index) => ({
+    n: index + 1,
+    icon: index === 0 ? Smartphone : index === 1 ? Receipt : Trophy,
+    title: recommendation.title,
+    desc: recommendation.description || 'Rekomendasi dari hasil analisis skor kreditmu.',
+    points: recommendation.estimatedPoints ? `+${recommendation.estimatedPoints}` : '+0',
+    chip: recommendation.priority || 'MEDIUM',
+    cta: recommendation.actionLabel || 'Mulai',
+  }));
+};
+
+const buildDisplayActivities = (activities) => {
+  if (!Array.isArray(activities) || activities.length === 0) return activityData;
+
+  return activities.slice(0, 4).map((activity, index) => ({
+    time: formatDate(activity.occurredAt, 'Baru saja'),
+    icon: index === 0 ? TrendingUp : index === 1 ? CheckCircle2 : index === 2 ? Bell : Sparkles,
+    text: activity.title || activity.description || 'Aktivitas terbaru tersedia',
+    tag: activity.type || 'Aktivitas',
+    color: index === 1 ? '#10B981' : index === 2 ? '#F59E0B' : '#0092B3',
+  }));
+};
+
 const DashboardPage = () => {
+  const [dashboard, setDashboard] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    dashboardService.getDashboard()
+      .then((response) => {
+        if (isMounted) setDashboard(response.data);
+      })
+      .catch(() => {
+        if (isMounted) setDashboard(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const summary = dashboard?.summary;
+  const currentScore = dashboard ? summary?.currentScore || 0 : 748;
+  const scoreDate = dashboard ? formatDate(summary?.scoreUpdatedAt) : '14 Apr 2026';
+  const userName = dashboard?.user?.name || 'Dwi Ratna';
+  const displayTrend = dashboard?.scoreTrend?.length
+    ? dashboard.scoreTrend.map((item) => ({ m: getMonthLabel(item.calculatedAt || item.createdAt), s: item.score }))
+    : trend;
+  const scoreDelta = displayTrend.length > 1 ? displayTrend[displayTrend.length - 1].s - displayTrend[0].s : 0;
+  const displayKpis = useMemo(() => {
+    if (!dashboard) return kpis;
+
+    return [
+      { icon: Wallet, label: 'Rata-rata omzet', value: formatCurrencyShort(summary?.monthlyRevenue), delta: 'per bulan', tone: 'up' },
+      { icon: Receipt, label: 'Rasio pengeluaran', value: `${summary?.expenseRatio || 0}%`, delta: 'Target <70%', tone: 'neutral' },
+      { icon: Smartphone, label: 'Transaksi digital', value: String(summary?.connectedPlatformCount || 0), delta: 'platform aktif', tone: 'neutral' },
+      { icon: ShieldCheck, label: 'Tagihan tepat waktu', value: `${dashboard.completion?.percentage || 0}%`, delta: 'kelengkapan', tone: 'up' },
+    ];
+  }, [dashboard, summary]);
+  const displayBreakdown = buildDisplayBreakdown(dashboard?.breakdown);
+  const displayRecs = buildDisplayRecommendations(dashboard?.recommendations);
+  const displayActivityData = buildDisplayActivities(dashboard?.activities);
+  const targetScore = Math.min(1000, currentScore + 47);
+  const targetProgress = targetScore > 0 ? Math.min(100, Math.round((currentScore / targetScore) * 100)) : 0;
+
   return (
     <>
       {/* HERO */}
@@ -62,7 +169,7 @@ const DashboardPage = () => {
             <div>
               <p className="font-body text-[11px] uppercase tracking-[0.18em] text-[#0092B3] font-medium">Beranda · Modalin</p>
               <h1 className="font-heading font-bold text-[28px] sm:text-[34px] text-zinc-900 tracking-tight mt-2 leading-tight max-w-2xl">
-                Selamat datang, <span className="text-[#0092B3]">Dwi Ratna</span>.
+                Selamat datang, <span className="text-[#0092B3]">{userName}</span>.
               </h1>
               <p className="font-body text-[13.5px] text-zinc-500 mt-3 max-w-xl leading-relaxed">
                 Skor kreditmu dalam performa terbaik bulan ini. Pantau ringkasan, rekomendasi, dan aktivitas terbarumu di satu tempat.
@@ -76,13 +183,13 @@ const DashboardPage = () => {
           <div className="mt-10 grid grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-6 lg:gap-0 lg:divide-x lg:divide-zinc-200/60">
             <div className="lg:pr-8 col-span-2 lg:col-span-1">
               <div className="flex items-baseline gap-2">
-                <span className="font-heading font-bold text-[48px] sm:text-[56px] text-zinc-900 leading-none tracking-tight">748</span>
+                <span className="font-heading font-bold text-[48px] sm:text-[56px] text-zinc-900 leading-none tracking-tight">{currentScore}</span>
                 <span className="font-body text-[13px] text-zinc-400">/ 1000</span>
               </div>
-              <p className="font-body text-[12px] text-zinc-500 mt-2">Skor saat ini · diperbarui 14 Apr 2026</p>
+              <p className="font-body text-[12px] text-zinc-500 mt-2">Skor saat ini · diperbarui {scoreDate}</p>
               <div className="mt-4"><HeroSparkline /></div>
             </div>
-            {kpis.map((k, i) => {
+            {displayKpis.map((k, i) => {
               const Icon = k.icon;
               const accent = k.tone === 'up' ? 'text-emerald-600' : 'text-[#0092B3]';
               return (
@@ -112,15 +219,15 @@ const DashboardPage = () => {
                 <div className="flex items-start justify-between mb-1">
                   <div>
                     <p className="font-body text-[11px] tracking-[0.16em] uppercase text-zinc-400 mb-1">Tren skor · 6 bulan</p>
-                    <p className="font-heading font-bold text-zinc-900 text-[24px] leading-none tracking-tight">748</p>
+                    <p className="font-heading font-bold text-zinc-900 text-[24px] leading-none tracking-tight">{currentScore}</p>
                   </div>
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-heading font-semibold text-[11px]">
-                    <TrendingUp className="w-3 h-3" /> +68
+                    <TrendingUp className="w-3 h-3" /> {scoreDelta >= 0 ? '+' : ''}{scoreDelta}
                   </span>
                 </div>
                 <div style={{ width: '100%', height: 130 }} className="mt-4">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <AreaChart data={trend} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
+                    <AreaChart data={displayTrend} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
                       <defs>
                         <linearGradient id="dashArea" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#0092B3" stopOpacity={0.32} />
@@ -148,7 +255,7 @@ const DashboardPage = () => {
                   <Link to="/score" className="font-heading font-semibold text-[12px] text-[#0092B3] hover:text-[#00768F]">Detail</Link>
                 </div>
                 <div className="space-y-4">
-                  {breakdown.map((b, i) => (
+                  {displayBreakdown.map((b, i) => (
                     <div key={i}>
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2">
@@ -178,7 +285,7 @@ const DashboardPage = () => {
                 </Link>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {recs.map((r) => {
+                {displayRecs.map((r) => {
                   const Icon = r.icon;
                   return (
                     <div key={r.n} className="group relative bg-white border border-zinc-200 hover:border-[#0092B3]/40 hover:shadow-[0_8px_24px_-12px_rgba(0,146,179,0.25)] rounded-2xl p-5 transition-all">
@@ -214,7 +321,7 @@ const DashboardPage = () => {
                 <span className="font-body text-[11px] text-zinc-400">Update otomatis</span>
               </div>
               <ol className="relative space-y-5 pl-6 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-zinc-200">
-                {activityData.map((a, i) => {
+                {displayActivityData.map((a, i) => {
                   const Icon = a.icon;
                   return (
                     <li key={i} className="relative">
@@ -247,12 +354,12 @@ const DashboardPage = () => {
                   <Target className="w-4 h-4" />
                   <p className="font-body text-[11px] tracking-[0.16em] uppercase text-white/70">Target skor</p>
                 </div>
-                <p className="font-heading font-bold text-[40px] leading-none tracking-tight">795</p>
+                <p className="font-heading font-bold text-[40px] leading-none tracking-tight">{targetScore}</p>
                 <p className="font-body text-[12px] text-white/75 mt-2 leading-relaxed">
                   Tinggal <span className="font-heading font-semibold text-white">+47 poin</span> untuk mencapai kategori <span className="font-heading font-semibold text-white">Sangat baik</span>
                 </p>
                 <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white rounded-full" style={{ width: '94%' }} />
+                  <div className="h-full bg-white rounded-full" style={{ width: `${targetProgress}%` }} />
                 </div>
                 <Link to="/score" className="mt-5 inline-flex items-center gap-1.5 bg-white text-[#0092B3] hover:bg-white/95 font-heading font-semibold text-[12px] px-4 py-2 rounded-lg">
                   Lihat rencana <ArrowUpRight className="w-3.5 h-3.5" />
