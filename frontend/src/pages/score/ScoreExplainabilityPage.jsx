@@ -1,440 +1,285 @@
-import { useState, useEffect } from 'react';
-import { Zap, TrendingUp, TrendingDown, Clock, Star, RefreshCw, Lightbulb, FileWarning, AlertCircle, Trophy } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCw, Zap, TrendingUp, Clock, Star, Lightbulb, TrendingDown, FileWarning, AlertCircle, Check, Trophy, Sparkles, ArrowUpRight, ArrowDownRight, Target } from 'lucide-react';
 
-/**
- * ScoreExplainabilityPage - Explains the credit score with 5C breakdown.
- * Tab-based view: Naik, Menurun, Rencana Aksi.
- */
+const tagStyles = {
+  Capacity: 'text-[#0092B3] bg-[#E6F7FA]',
+  Character: 'text-emerald-700 bg-emerald-50',
+  Condition: 'text-amber-700 bg-amber-50',
+  Capital: 'text-violet-700 bg-violet-50',
+  Collateral: 'text-rose-700 bg-rose-50',
+};
+
+const filters = [
+  { key: 'naik', label: 'Faktor naik' },
+  { key: 'menurun', label: 'Faktor menurun' },
+  { key: 'rencana', label: 'Rencana aksi' },
+];
+
+const factorsNaik = [
+  { id: 'f1', icon: RefreshCw, title: 'Frekuensi transaksi digital tinggi', description: '127 transaksi per bulan — jauh diatas rata-rata segmen (85/bulan)', points: 89, progress: 88, tag: 'Capacity', direction: 'naik' },
+  { id: 'f2', icon: Zap, title: 'Tagihan listrik konsisten 6 bulan', description: 'Tidak ada keterlambatan pembayaran dalam 6 bulan terakhir', points: 73, progress: 75, tag: 'Character', direction: 'naik' },
+  { id: 'f3', icon: TrendingUp, title: 'Omzet stabil dan meningkat', description: 'Tren omzet naik 12% selama 3 bulan berturut-turut', points: 65, progress: 68, tag: 'Capacity', direction: 'naik' },
+  { id: 'f4', icon: Clock, title: 'Usaha sudah berjalan 2 tahun', description: 'Durasi operasional menunjukkan ketahanan dan keberlangsungan usaha', points: 54, progress: 58, tag: 'Condition', direction: 'naik' },
+  { id: 'f5', icon: Star, title: 'Rating toko Tokopedia 4.8 bintang', description: 'Reputasi digital tinggi dari 230+ ulasan pembeli', points: 41, progress: 45, tag: 'Collateral', direction: 'naik' },
+];
+
+const factorsMenurun = [
+  { id: 'm1', icon: TrendingDown, title: 'Rasio hutang terhadap pendapatan tinggi', description: 'Beban cicilan bulanan mencapai 45% dari total omzet, melewati batas aman 30%.', points: 23, progress: 45, tag: 'Capital', direction: 'menurun' },
+  { id: 'm2', icon: FileWarning, title: 'Data legalitas usaha belum lengkap', description: 'Belum melampirkan NIB dan NPWP perusahaan yang dapat menambah bobot kepercayaan.', points: 15, progress: 35, tag: 'Character', direction: 'menurun' },
+  { id: 'm3', icon: Clock, title: 'Keterlambatan pembayaran supplier', description: 'Tercatat 2 kali keterlambatan pembayaran >7 hari dalam 3 bulan terakhir.', points: 12, progress: 25, tag: 'Condition', direction: 'menurun' },
+];
+
+const actionPlans = [
+  { id: 'a1', number: 1, title: 'Hubungkan akun GoPay atau OVO', description: 'Koneksi e-wallet memungkinkan ModalIn memverifikasi arus kas digitalmu secara real-time.', points: 18, chips: [{ label: 'Mudah, 5 menit', kind: 'easy', check: true }, { label: 'Capacity', kind: 'category' }, { label: 'Prioritas utama', kind: 'priority' }], cta: { label: 'Mulai', variant: 'primary' } },
+  { id: 'a2', number: 2, title: 'Daftar koperasi atau asosiasi UMKM setempat', description: 'Keanggotaan resmi di koperasi atau asosiasi UMKM meningkatkan dimensi Collateral.', points: 12, chips: [{ label: 'Sedang, 1-2 minggu', kind: 'medium' }, { label: 'Collateral', kind: 'category' }], cta: { label: 'Info', variant: 'outline' } },
+  { id: 'a3', number: 3, title: 'Bayar tagihan air PDAM secara rutin 3 bulan ke depan', description: 'Konsisten pembayaran tagihan utilitas adalah sinyal Character yang kuat.', points: 9, chips: [{ label: 'Mudah, Otomatis', kind: 'easy', check: true }, { label: 'Character', kind: 'category' }], cta: { label: 'Hubungkan', variant: 'outline' } },
+  { id: 'a4', number: 4, title: 'Stabilkan pengeluaran bulanan dalam rentang yang konsisten', description: 'Cobalah menjaga pengeluaran dalam rentang 15% dari rata-rata.', points: 12, chips: [{ label: 'Sedang, 2-3 bulan', kind: 'medium' }, { label: 'Capacity', kind: 'category' }], cta: { label: 'Info', variant: 'outline' } },
+];
+
+const chipStyles = {
+  easy: 'bg-emerald-50 text-emerald-700',
+  medium: 'bg-amber-50 text-amber-700',
+  auto: 'bg-emerald-50 text-emerald-700',
+  priority: 'bg-orange-50 text-orange-600',
+  category: 'bg-[#E6F7FA] text-[#0092B3]',
+};
+
+function HeroScoreRing() {
+  const r = 50;
+  const c = 2 * Math.PI * r;
+  const offset = c - (748 / 1000) * c;
+  return (
+    <div className="relative w-[110px] h-[110px] sm:w-[130px] sm:h-[130px]">
+      <svg className="w-full h-full -rotate-90">
+        <circle cx="50%" cy="50%" r={r} stroke="#E6F7FA" strokeWidth="8" fill="none" />
+        <circle cx="50%" cy="50%" r={r} stroke="url(#scoreRingGrad)" strokeWidth="8" fill="none" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
+        <defs>
+          <linearGradient id="scoreRingGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#0092B3" />
+            <stop offset="100%" stopColor="#4FC3DC" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-heading font-bold text-zinc-900 text-[28px] sm:text-[34px] leading-none">748</span>
+        <span className="font-body text-[10px] text-zinc-400 mt-1">dari 1000</span>
+      </div>
+    </div>
+  );
+}
+
 const ScoreExplainabilityPage = () => {
-  const [activeTab, setActiveTab] = useState('aksi'); // Default to 'aksi' as shown in the latest user screenshot
-  const [animatedScore, setAnimatedScore] = useState(0);
-  const [barsVisible, setBarsVisible] = useState(false);
-
-  const scoreData = {
-    score: 748,
-    maxScore: 1000,
-    label: 'Cukup baik',
-    date: '12 Apr 2026',
-    segment: 'Segmen Kuliner',
-    potentialGain: 47,
-  };
-
-  // Score counter animation
-  useEffect(() => {
-    const target = scoreData.score;
-    const duration = 1400;
-    const startTime = performance.now();
-    const animate = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setAnimatedScore(Math.round(eased * target));
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-    const timer = setTimeout(() => requestAnimationFrame(animate), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Bars animation trigger
-  useEffect(() => {
-    const timer = setTimeout(() => setBarsVisible(true), 600);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const tabs = [
-    { id: 'naik', label: 'Naik' },
-    { id: 'menurun', label: 'Menurun' },
-    { id: 'aksi', label: 'Rencana Aksi' },
-  ];
-
-  const naikFactors = [
-    {
-      icon: RefreshCw,
-      title: 'Frekuensi transaksi digital tinggi',
-      desc: '127 transaksi per bulan — jauh diatas rata-rata segmen (85/bulan)',
-      points: '+89 poin',
-      category: 'Capacity',
-      barPercent: 89,
-    },
-    {
-      icon: Zap,
-      title: 'Tagihan listrik konsisten 6 bulan',
-      desc: 'Tidak ada keterlambatan pembayaran dalam 6 bulan terakhir',
-      points: '+73 poin',
-      category: 'Character',
-      barPercent: 73,
-    },
-    {
-      icon: TrendingUp,
-      title: 'Omzet stabil dan meningkat',
-      desc: 'Tren omzet naik 12% selama 3 bulan berturut-turut',
-      points: '+65 poin',
-      category: 'Capacity',
-      barPercent: 65,
-    },
-    {
-      icon: Clock,
-      title: 'Usaha sudah berjalan 2 tahun',
-      desc: 'Durasi operasional menunjukkan ketahanan dan keberlangsungan usaha',
-      points: '+54 poin',
-      category: 'Condition',
-      barPercent: 54,
-    },
-    {
-      icon: Star,
-      title: 'Rating toko Tokopedia 4.8 bintang',
-      desc: 'Reputasi digital tinggi dari 230+ ulasan pembeli',
-      points: '+41 poin',
-      category: 'Collateral',
-      barPercent: 41,
-    },
-  ];
-
-  const menurunFactors = [
-    {
-      icon: TrendingDown,
-      title: 'Rasio utang terhadap pendapatan tinggi',
-      desc: 'Beban cicilan bulanan mencapai 45% dari total omzet, melewati batas aman 30%.',
-      points: '-23 poin',
-      category: 'Capital',
-      barPercent: 45,
-    },
-    {
-      icon: FileWarning,
-      title: 'Data legalitas usaha belum lengkap',
-      desc: 'Belum melampirkan NIB dan NPWP perusahaan yang dapat menambah bobot kepercayaan.',
-      points: '-15 poin',
-      category: 'Character',
-      barPercent: 30,
-    },
-    {
-      icon: Clock,
-      title: 'Keterlambatan pembayaran supplier',
-      desc: 'Tercatat 2 kali keterlambatan pembayaran >7 hari dalam 3 bulan terakhir.',
-      points: '-12 poin',
-      category: 'Condition',
-      barPercent: 25,
-    },
-  ];
-
-  // Specific Action factors matching the newly provided figma screenshot 100%
-  const aksiFactorsList = [
-    {
-      rank: '1',
-      title: 'Hubungkan akun GoPay atau OVO',
-      desc: 'Koneksi e-wallet memungkinkan ModalIn memverifikasi arus kas digitalmu secara real-time. Ini adalah langkah tunggal dengan dampak terbesar untuk skormu saat ini.',
-      tags: [
-        { text: '✓ Mudah, 5 menit', type: 'easy' },
-        { text: 'Capacity', type: 'category' },
-        { text: 'Prioritas utama', type: 'priority' },
-      ],
-      points: '+18 poin',
-      buttonText: 'Mulai',
-      buttonType: 'primary',
-    },
-    {
-      rank: '2',
-      title: 'Daftar koperasi atau asosiasi UMKM setempat',
-      desc: 'Keanggotaan resmi di koperasi atau asosiasi UMKM seperti HIPMI atau IWAPI meningkatkan dimensi Collateral. ModalIn dapat membantu mencarikan koperasi terdekat.',
-      tags: [
-        { text: 'Sedang, 1-2 minggu', type: 'medium' },
-        { text: 'Collateral', type: 'category' },
-      ],
-      points: '+12 poin',
-      buttonText: 'info',
-      buttonType: 'outline',
-    },
-    {
-      rank: '2',
-      title: 'Bayar tagihan air PDAM secara rutin 3 bulan ke depan',
-      desc: 'Konsisten pembayaran tagihan utilitas adalah sinyal Character yang kuat. Hubungkan tagihan air ke ModalIn agar terlacak secara otomatis.',
-      tags: [
-        { text: '✓ Mudah, Otomatis', type: 'easy' },
-        { text: 'Character', type: 'category' },
-      ],
-      points: '+9 poin',
-      buttonText: 'Hubungkan',
-      buttonType: 'outline',
-    },
-    {
-      rank: '2',
-      title: 'Stabilkan pengeluaran bulanan dalam rentang yang konsisten',
-      desc: 'Cobalah menjaga pengeluaran dalam rentang 15% dari rata-rata. Variasi yang rendah menunjukkan kemampuan mengelola keuangan dengan baik kepada calon pemberi pinjaman.',
-      tags: [
-        { text: 'Sedang, 2-3 bulan', type: 'medium' },
-        { text: 'Capacity', type: 'category' },
-      ],
-      points: '+12 poin',
-      buttonText: 'info',
-      buttonType: 'outline',
-    },
-  ];
-
-  const currentFactors = activeTab === 'naik' ? naikFactors : activeTab === 'menurun' ? menurunFactors : [];
-
-  const tabDescriptions = {
-    naik: 'Faktor-faktor berikut berkontribusi positif terhadap skor kreditmu. Pertahanan dan tingkatkan agar skor terus naik.',
-    menurun: 'Faktor-faktor berikut merupakan area yang perlu diperbaiki untuk meningkatkan skor kreditmu. Segera ambil tindakan pencegahan.',
-    aksi: 'Langkah-langkah konkret yang bisa kamu lakukan untuk meningkatkan skor, diurutkan dari dampak terbesar.',
-  };
-
-  // SVG Circle
-  const radius = 70;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - animatedScore / scoreData.maxScore);
-
-  // Dynamic 5C Badges style matching Figma perfectly
-  const getCategoryStyle = (category) => {
-    switch (category.toLowerCase()) {
-      case 'capacity':
-        return 'bg-[#E0F2FE] text-[#0369A1]';
-      case 'character':
-        return 'bg-[#E6F7ED] text-[#15803D]';
-      case 'condition':
-        return 'bg-[#FEF3C7] text-[#D97706]';
-      case 'collateral':
-        return 'bg-[#FEE2E2] text-[#B91C1C]';
-      case 'capital':
-        return 'bg-[#F3E8FF] text-[#7E22CE]';
-      default:
-        return 'bg-zinc-100 text-zinc-600';
-    }
-  };
-
-  const getTagStyle = (tag) => {
-    if (tag.type === 'easy') return 'bg-[#EBF9F4] text-[#10B981]';
-    if (tag.type === 'medium') return 'bg-[#FFF7ED] text-[#D97706]';
-    if (tag.type === 'priority') return 'bg-[#FFF7ED] text-[#EA580C]';
-    if (tag.type === 'category') return getCategoryStyle(tag.text);
-    return 'bg-zinc-100 text-zinc-600';
-  };
+  const [activeFilter, setActiveFilter] = useState('naik');
+  const currentFactors = activeFilter === 'menurun' ? factorsMenurun : activeFilter === 'naik' ? factorsNaik : [];
 
   return (
-    <div className="space-y-6">
-
-      {/* Score Hero Card */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-6 sm:p-8 animate-fade-in">
-        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-10">
-          {/* Left: Score Ring + Label */}
-          <div className="flex flex-col items-center shrink-0">
-            <div className="relative w-[160px] h-[160px]">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 170 170">
-                <circle cx="85" cy="85" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="10" strokeLinecap="round" />
-                <circle cx="85" cy="85" r={radius} fill="none" stroke="#7B61FF" strokeWidth="10" strokeLinecap="round"
-                  strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
-                  style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)' }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[42px] font-bold text-zinc-900 leading-none tabular-nums">{animatedScore}</span>
-                <span className="text-[12px] text-zinc-400 mt-0.5">dari {scoreData.maxScore}</span>
+    <>
+      {/* HERO */}
+      <section className="relative px-6 sm:px-10 lg:px-14 pt-10 pb-12 bg-gradient-to-br from-[#F0FAFC] via-white to-white border-b border-zinc-100 overflow-hidden">
+        <div className="absolute -right-20 -top-20 w-[420px] h-[420px] rounded-full bg-[#0092B3]/5 blur-3xl pointer-events-none" />
+        <div className="relative">
+          <p className="font-body text-[11px] uppercase tracking-[0.18em] text-[#0092B3] font-medium">Skor & Explainability</p>
+          <h1 className="font-heading font-bold text-[28px] sm:text-[34px] text-zinc-900 tracking-tight mt-2 leading-tight max-w-2xl">
+            Mengapa skormu <span className="text-[#0092B3]">748</span>?
+          </h1>
+          <p className="font-body text-[13.5px] text-zinc-500 mt-3 max-w-xl leading-relaxed">
+            Telusuri faktor yang mendorong dan menurunkan skor kreditmu, serta rencana aksi konkret untuk meningkatkannya.
+          </p>
+          {/* KPI grid */}
+          <div className="mt-10 grid grid-cols-2 lg:grid-cols-[1.1fr_1fr_1fr_1fr] gap-6 lg:gap-0 lg:divide-x lg:divide-zinc-200/60">
+            <div className="lg:pr-8 flex items-center gap-5 col-span-2 lg:col-span-1">
+              <HeroScoreRing />
+              <div>
+                <p className="font-body text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Skor saat ini</p>
+                <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-1.5">Cukup baik</p>
+                <p className="font-body text-[11.5px] text-zinc-500 mt-1">Diperbarui 12 Apr 2026</p>
               </div>
             </div>
-            <p className="text-[14px] text-zinc-500 font-medium mt-3">{scoreData.label}</p>
-          </div>
-
-          {/* Center: Info */}
-          <div className="flex-1 text-center lg:text-left">
-            <h1 className="text-[24px] sm:text-[28px] font-bold text-zinc-900 tracking-tight leading-tight">
-              Mengapa skormu<br className="hidden sm:block" /> {scoreData.score}?
-            </h1>
-            <p className="text-[13px] text-zinc-400 mt-3">Diperbaharui {scoreData.date}.</p>
-            <p className="text-[13px] text-zinc-400">{scoreData.segment}</p>
-          </div>
-
-          {/* Right: Potential Gain — separated by left border */}
-          <div className="shrink-0 text-center lg:text-left lg:border-l lg:border-zinc-100 lg:pl-10">
-            <p className="text-[13px] text-zinc-400 mb-1">Potensi kenaikan</p>
-            <p className="text-[36px] font-bold text-[#10B981] leading-none tracking-tight">+ {scoreData.potentialGain} poin</p>
-            <p className="text-[12px] text-zinc-400 mt-2">Jika semua aksi dijalankan</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '150ms' }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setBarsVisible(false); setTimeout(() => setBarsVisible(true), 100); }}
-            className={`px-5 py-2 rounded-full text-[14px] font-medium transition-all duration-200 ${
-              activeTab === tab.id
-                ? 'bg-[#6366F1] text-white shadow-sm'
-                : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Description */}
-      <p className="text-[14px] text-zinc-500 animate-fade-in" style={{ animationDelay: '200ms' }}>
-        {tabDescriptions[activeTab]}
-      </p>
-
-      {/* Factor Cards / Action Cards depending on active tab */}
-      {activeTab === 'aksi' ? (
-        <div className="space-y-3">
-          {aksiFactorsList.map((factor, i) => (
-            <div
-              key={`aksi-${i}`}
-              className="bg-white rounded-2xl border border-zinc-100 flex items-center overflow-hidden hover:shadow-sm transition-all duration-300"
-              style={{
-                opacity: barsVisible ? 1 : 0,
-                transform: barsVisible ? 'translateY(0)' : 'translateY(12px)',
-                transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${i * 100}ms`,
-              }}
-            >
-              <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6">
-                {/* Left rank badge + Main content */}
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  {/* Circle Rank Badge */}
-                  <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-[14px] font-bold text-[#6366F1]">{factor.rank}</span>
-                  </div>
-
-                  {/* Text + Tags list */}
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <h3 className="text-[15px] font-bold text-zinc-800 leading-snug">{factor.title}</h3>
-                    <p className="text-[13px] text-zinc-400 leading-relaxed">{factor.desc}</p>
-                    
-                    {/* Tags row */}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {factor.tags.map((tag, tagIndex) => (
-                        <span
-                          key={tagIndex}
-                          className={`text-[11px] font-semibold py-1 px-2.5 rounded-lg ${getTagStyle(tag)}`}
-                        >
-                          {tag.text}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Points + Button */}
-                <div className="flex sm:flex-col items-end justify-between sm:justify-center gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-zinc-50">
-                  <div className="text-right">
-                    <span className="text-[18px] font-bold text-[#10B981] block leading-none">{factor.points}</span>
-                    <span className="text-[11px] text-zinc-400 mt-1 block">estimasi</span>
-                  </div>
-                  
-                  {factor.buttonType === 'primary' ? (
-                    <button className="bg-[#6366F1] text-white hover:bg-[#4F46E5] px-5 py-1.5 rounded-full text-[12px] font-bold transition-all shadow-sm">
-                      {factor.buttonText}
-                    </button>
-                  ) : (
-                    <button className="bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50 px-5 py-1.5 rounded-full text-[12px] font-medium transition-all">
-                      {factor.buttonText}
-                    </button>
-                  )}
-                </div>
+            <div className="lg:px-8">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <TrendingUp className="w-4 h-4" />
+                <p className="font-body text-[11px] uppercase tracking-wider font-medium">Potensi kenaikan</p>
               </div>
+              <p className="font-heading font-bold text-[30px] text-emerald-600 leading-none mt-3">+47</p>
+              <p className="font-body text-[12px] text-zinc-500 mt-2">Jika semua aksi dijalankan</p>
             </div>
-          ))}
+            <div className="lg:px-8">
+              <div className="flex items-center gap-2 text-[#0092B3]">
+                <ArrowUpRight className="w-4 h-4" />
+                <p className="font-body text-[11px] uppercase tracking-wider font-medium">Faktor naik</p>
+              </div>
+              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">5</p>
+              <p className="font-body text-[12px] text-zinc-500 mt-2">Berkontribusi positif</p>
+            </div>
+            <div className="lg:px-8">
+              <div className="flex items-center gap-2 text-rose-600">
+                <ArrowDownRight className="w-4 h-4" />
+                <p className="font-body text-[11px] uppercase tracking-wider font-medium">Faktor menurun</p>
+              </div>
+              <p className="font-heading font-bold text-[30px] text-zinc-900 leading-none mt-3">3</p>
+              <p className="font-body text-[12px] text-zinc-500 mt-2">Perlu diperbaiki</p>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {currentFactors.map((factor, i) => {
-            const Icon = factor.icon;
-            const isNegative = factor.points.startsWith('-');
+      </section>
+
+      {/* TAB NAV */}
+      <nav className="px-6 sm:px-10 lg:px-14 border-b border-zinc-100 sticky top-0 bg-white/90 backdrop-blur z-10">
+        <div className="flex items-center gap-8 overflow-x-auto">
+          {filters.map((f) => {
+            const active = activeFilter === f.key;
             return (
-              <div
-                key={`${activeTab}-${i}`}
-                className="bg-white rounded-2xl border border-zinc-100 flex items-center overflow-hidden hover:shadow-sm transition-all duration-300"
-                style={{
-                  opacity: barsVisible ? 1 : 0,
-                  transform: barsVisible ? 'translateY(0)' : 'translateY(12px)',
-                  transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${i * 100}ms`,
-                }}
-              >
-                <div className="flex-1 flex items-center gap-4 p-5 sm:p-6">
-                  {/* Icon */}
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
-                    isNegative ? 'bg-[#FEF2F2]' : 'bg-[#E6F7ED]'
-                  }`}>
-                    <Icon size={20} className={isNegative ? 'text-[#EF4444]' : 'text-[#10B981]'} />
-                  </div>
-
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-[15px] font-semibold text-zinc-800">{factor.title}</h3>
-                    <p className="text-[13px] text-zinc-400 mt-0.5">{factor.desc}</p>
-                  </div>
-
-                  {/* Bar + Points + Category — fixed-width columns */}
-                  <div className="hidden sm:flex items-center gap-4 shrink-0">
-                    {/* Mini Progress Bar */}
-                    <div className="w-[120px] h-[8px] bg-[#F3F4F6] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: barsVisible ? `${factor.barPercent}%` : '0%',
-                          backgroundColor: isNegative ? '#F43F5E' : '#10B981',
-                          transition: `width 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${i * 100 + 200}ms`,
-                        }}
-                      />
-                    </div>
-
-                    {/* Points */}
-                    <span className={`w-[70px] text-right text-[14px] font-semibold tabular-nums ${
-                      isNegative ? 'text-[#F43F5E]' : 'text-[#10B981]'
-                    }`}>
-                      {factor.points}
-                    </span>
-
-                    {/* Category Badge — filled pill */}
-                    <span className={`w-[90px] text-center text-[12px] font-semibold py-1 px-3 rounded-xl ${
-                      getCategoryStyle(factor.category)
-                    }`}>
-                      {factor.category}
-                    </span>
-                  </div>
-                </div>
-            </div>
+              <button key={f.key} onClick={() => setActiveFilter(f.key)} className={`relative py-4 text-[13px] font-medium whitespace-nowrap transition-colors ${active ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-700'}`}>
+                {f.label}
+                {active && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#0092B3] rounded-full" />}
+              </button>
             );
           })}
         </div>
-      )}
+      </nav>
 
-      {/* Bottom Tip / Trophy Target Card dynamically themed based on active tab */}
-      {activeTab === 'aksi' ? (
-        <div className="bg-[#F5F3FF] border border-[#DDD6FE] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in" style={{ animationDelay: '400ms' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
-              <Trophy size={20} className="text-[#6366F1]" />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold text-[#3730A3]">Jika semua langkah dilakukan, skor bisa mencapai 795 dalam 3 bulan</p>
-              <p className="text-[12px] text-[#6366F1] mt-0.5">Skor 795 membuka akses ke produk pinjaman lebih luas dari mitra ModalIn — termasuk KUR digital hingga Rp50 juta</p>
-            </div>
+      {/* CONTENT */}
+      <div className="px-6 sm:px-10 lg:px-14 py-12">
+        {activeFilter !== 'rencana' ? (
+          <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_1fr] gap-12">
+            <section>
+              <h2 className="font-heading font-bold text-[20px] text-zinc-900 tracking-tight">
+                {activeFilter === 'naik' ? 'Faktor yang mendorong skor naik' : 'Faktor yang menurunkan skor'}
+              </h2>
+              <p className="font-body text-[12.5px] text-zinc-500 mt-1 max-w-xl">
+                {activeFilter === 'naik' ? 'Pertahankan dan tingkatkan faktor berikut agar skor terus naik konsisten.' : 'Area-area berikut perlu diperbaiki untuk meningkatkan skor kreditmu.'}
+              </p>
+              <ol className="mt-8 relative pl-6 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-zinc-200">
+                {currentFactors.map((factor) => {
+                  const Icon = factor.icon;
+                  const isMenurun = factor.direction === 'menurun';
+                  return (
+                    <li key={factor.id} className="relative pb-8 last:pb-0">
+                      <span className={`absolute -left-[22px] top-1.5 w-[14px] h-[14px] rounded-full border-2 border-white ring-1 ${isMenurun ? 'bg-rose-500 ring-rose-200' : 'bg-[#0092B3] ring-[#0092B3]/40'}`} />
+                      <div className="flex items-start gap-4">
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${isMenurun ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+                          <Icon className={`w-5 h-5 ${isMenurun ? 'text-rose-600' : 'text-emerald-600'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 flex-wrap">
+                            <h3 className="font-heading font-semibold text-[14px] text-zinc-900 leading-snug">{factor.title}</h3>
+                            <span className={`font-heading font-bold text-[14px] whitespace-nowrap ${isMenurun ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {isMenurun ? '−' : '+'}{factor.points} poin
+                            </span>
+                          </div>
+                          <p className="font-body text-[12.5px] text-zinc-500 mt-1.5 leading-relaxed">{factor.description}</p>
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden max-w-xs">
+                              <div className={`h-full rounded-full ${isMenurun ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${factor.progress}%` }} />
+                            </div>
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${tagStyles[factor.tag]}`}>{factor.tag}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+            <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
+              <div className="bg-gradient-to-br from-[#E6F7FA] to-[#F0FAFC] border border-[#0092B3]/15 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-[#00768F]">
+                  {activeFilter === 'naik' ? <Lightbulb className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  <p className="font-body text-[11px] uppercase tracking-wider font-medium">Insight</p>
+                </div>
+                <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-3 leading-snug">
+                  {activeFilter === 'naik' ? 'Frekuensi transaksi digital dan ketepatan tagihan adalah dua kontributor utama skormu.' : 'Rasio hutang dan kelengkapan dokumen legalitas adalah dua prioritas perbaikan utama.'}
+                </p>
+                <p className="font-body text-[12px] text-zinc-600 mt-2 leading-relaxed">
+                  {activeFilter === 'naik' ? 'Pertahankan ritme ini agar skor terus naik konsisten +10 poin per bulan.' : 'Memperbaiki dua faktor ini berpotensi menambah +35 poin dalam 2-3 bulan.'}
+                </p>
+              </div>
+              <div className="border border-zinc-100 rounded-2xl p-5">
+                <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">Total dampak</p>
+                <p className={`font-heading font-bold text-[28px] leading-none mt-2 ${activeFilter === 'naik' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {activeFilter === 'naik' ? '+322' : '−50'} <span className="font-body text-[14px] text-zinc-400 font-normal">poin</span>
+                </p>
+                <p className="font-body text-[12px] text-zinc-500 mt-2">
+                  Akumulasi {activeFilter === 'naik' ? currentFactors.length + ' faktor positif' : currentFactors.length + ' faktor negatif'}
+                </p>
+              </div>
+              <div className="border border-zinc-100 rounded-2xl p-5">
+                <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">Dimensi paling kuat</p>
+                <p className="font-heading font-bold text-[18px] text-zinc-900 leading-none mt-2">{activeFilter === 'naik' ? 'Capacity' : 'Capital'}</p>
+                <p className="font-body text-[12px] text-zinc-500 mt-2 leading-relaxed">
+                  {activeFilter === 'naik' ? 'Kemampuan finansial dan transaksi konsisten.' : 'Struktur modal dan rasio hutang perlu perhatian.'}
+                </p>
+              </div>
+            </aside>
           </div>
-          <div className="shrink-0 text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-indigo-100 flex sm:flex-col justify-between sm:justify-center items-center sm:items-end">
-            <span className="text-[11px] text-[#8B5CF6] uppercase font-bold tracking-wider">target skor</span>
-            <span className="text-[32px] font-bold text-[#6366F1] leading-none mt-1">795</span>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_1fr] gap-12">
+            <section>
+              <h2 className="font-heading font-bold text-[20px] text-zinc-900 tracking-tight">Rencana aksi prioritas</h2>
+              <p className="font-body text-[12.5px] text-zinc-500 mt-1 max-w-xl">Langkah-langkah konkret yang bisa kamu lakukan untuk meningkatkan skor.</p>
+              <div className="mt-8 space-y-4">
+                {actionPlans.map((plan) => (
+                  <div key={plan.id} className="bg-white border border-zinc-100 rounded-2xl p-5 hover:border-zinc-200 hover:shadow-sm transition-all flex flex-col sm:flex-row items-start gap-4">
+                    <div className="w-9 h-9 rounded-full bg-[#E6F7FA] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="font-heading font-bold text-[13px] text-[#0092B3]">{plan.number}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-heading font-semibold text-[14px] text-zinc-900 leading-snug">{plan.title}</h3>
+                      <p className="font-body text-[12.5px] text-zinc-500 mt-1.5 leading-relaxed">{plan.description}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-3.5">
+                        {plan.chips.map((chip, i) => (
+                          <span key={i} className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full ${chipStyles[chip.kind]}`}>
+                            {chip.check && <Check className="w-3 h-3" strokeWidth={3} />}
+                            {chip.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0 pl-2">
+                      <div className="text-right">
+                        <p className="font-heading font-bold text-[18px] text-emerald-600 leading-none">+{plan.points} poin</p>
+                        <p className="font-body text-[11px] text-zinc-400 mt-1">estimasi</p>
+                      </div>
+                      <button className={`mt-1 px-4 py-1.5 rounded-full text-[12px] font-medium transition-all ${plan.cta.variant === 'primary' ? 'bg-[#0092B3] text-white hover:bg-[#00768F] shadow-sm' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'}`}>
+                        {plan.cta.label}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
+              <div className="bg-gradient-to-br from-[#E6F7FA] to-[#F0FAFC] border border-[#0092B3]/15 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-[#00768F]">
+                  <Trophy className="w-4 h-4" />
+                  <p className="font-body text-[11px] uppercase tracking-wider font-medium">Target skor</p>
+                </div>
+                <p className="font-heading font-bold text-[42px] text-[#00768F] leading-none mt-4">795</p>
+                <p className="font-heading font-semibold text-[14px] text-zinc-900 mt-3 leading-snug">Jika semua langkah dilakukan, skor bisa mencapai 795 dalam 3 bulan.</p>
+                <p className="font-body text-[12px] text-zinc-600 mt-2 leading-relaxed">Skor 795 membuka akses ke produk pinjaman lebih luas dari mitra ModalIn.</p>
+              </div>
+              <div className="border border-zinc-100 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-zinc-700">
+                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                  <p className="font-body text-[11px] uppercase tracking-wider font-medium text-zinc-400">Potensi total</p>
+                </div>
+                <p className="font-heading font-bold text-[28px] text-emerald-600 leading-none mt-3">+47 poin</p>
+                <p className="font-body text-[12px] text-zinc-500 mt-2">Dari 4 rencana aksi</p>
+              </div>
+              <div className="border border-zinc-100 rounded-2xl p-5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#E6F7FA] flex items-center justify-center">
+                  <Target className="w-5 h-5 text-[#0092B3]" />
+                </div>
+                <div>
+                  <p className="font-heading font-semibold text-[13px] text-zinc-900">Mulai dari yang termudah</p>
+                  <p className="font-body text-[11.5px] text-zinc-500 mt-0.5">Aksi #1 cuma butuh 5 menit</p>
+                </div>
+              </div>
+            </aside>
           </div>
-        </div>
-      ) : (
-        <div className={`rounded-2xl p-5 flex items-center gap-3 animate-fade-in border transition-all duration-300 ${
-          activeTab === 'menurun'
-            ? 'bg-[#FFF5F5] border-[#FEE2E2] text-[#991B1B]'
-            : 'bg-[#EBF9F4] border-[#D1FAE5] text-zinc-600'
-        }`} style={{ animationDelay: '400ms' }}>
-          {activeTab === 'menurun' ? (
-            <AlertCircle size={20} className="text-[#EF4444] shrink-0" />
-          ) : (
-            <Lightbulb size={20} className="text-[#10B981] shrink-0" />
-          )}
-          <p className="text-[13px] leading-relaxed">
-            {activeTab === 'menurun'
-              ? 'Menjaga rasio utang di bawah 30% dan membayar tepat waktu adalah langkah krusial untuk memperbaiki skor yang menurun.'
-              : 'Pertahankan konsistensi transaksi dan tagihan. Semakin stabil pola keuanganmu, semakin cepat skor naik setiap bulan.'
-            }
-          </p>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 

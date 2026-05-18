@@ -1,116 +1,127 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { ROUTES } from '../../constants/routes';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ROUTES } from "../../constants/routes";
+import CustomSelect from "../../components/ui/CustomSelect";
 
-/**
- * BusinessDataPage - Onboarding step 1: Business information.
- */
 const BusinessDataPage = () => {
   const navigate = useNavigate();
+  const [platforms, setPlatforms] = useState(["Shopee", "Gojek", "Tokopedia", ""]);
+  const [jenisUsaha, setJenisUsaha] = useState("Kuliner / F&B");
+  const [lamaBerdiri, setLamaBerdiri] = useState("<1 tahun");
 
-  const handleSubmit = (e) => {
+  const setPlatform = (i, val) => {
+    setPlatforms((p) => p.map((x, idx) => (idx === i ? val : x)));
+  };
+
+  const handleNext = (e) => {
     e.preventDefault();
-    // Simulate navigation to step 2
     navigate(ROUTES.ONBOARDING_FINANCIAL);
   };
 
-  const inputClasses = "w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-[15px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#0092B3]/20 focus:border-[#0092B3] transition-colors";
-  const labelClasses = "block text-[14px] font-medium text-zinc-900 mb-2";
-
   return (
-    <div className="animate-fade-in w-full">
-      {/* Title & Progress Bar */}
-      <h1 className="text-2xl sm:text-[28px] font-bold text-zinc-900 mb-5 tracking-tight">
-        Langkah 1 dari 2 — Data usaha
-      </h1>
-      
-      <div className="w-full h-1.5 bg-zinc-100 rounded-full mb-10 overflow-hidden">
-        <div className="w-1/2 bg-[#0092B3] h-full rounded-full"></div>
-      </div>
-
-      {/* Section Header */}
+    <div className="w-full">
+      {/* Step header */}
       <div className="mb-8">
-        <h2 className="text-[17px] font-semibold text-zinc-900 mb-1">Ceritakan usahamu</h2>
-        <p className="text-[14px] text-zinc-500">Data ini digunakan untuk membangun profil kredit yang akurat untukmu</p>
+        <h1 className="font-heading font-semibold text-2xl text-zinc-900 inline-block">
+          Langkah 1 dari 2 — Data usaha
+        </h1>
+        {/* Progress bar */}
+        <div className="mt-5 h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-[#0092B3] rounded-full transition-all duration-500 ease-out" 
+            style={{ width: '50%' }}
+          />
+        </div>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="businessName" className={labelClasses}>
-            Nama usaha
-          </label>
+      <div className="mb-6">
+        <h2 className="font-heading font-semibold text-lg text-zinc-900">Ceritakan usahamu</h2>
+        <p className="text-sm text-zinc-500 mt-1">
+          Data ini digunakan untuk membangun profil kredit yang akurat untukmu
+        </p>
+      </div>
+
+      <form onSubmit={handleNext} className="space-y-5">
+        {/* Nama usaha */}
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-zinc-800">Nama usaha <span className="text-red-500">*</span></label>
           <input
-            id="businessName"
             type="text"
             placeholder="Contoh: Warung Makan Bu Sari"
-            className={inputClasses}
+            className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
             required
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="businessType" className={labelClasses}>
-              Jenis usaha
-            </label>
-            <input
-              id="businessType"
-              type="text"
-              placeholder="Contoh: Kuliner"
-              className={inputClasses}
-              required
+        {/* Jenis & Lama */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-zinc-800">Jenis usaha <span className="text-red-500">*</span></label>
+            <CustomSelect
+              value={jenisUsaha}
+              onChange={setJenisUsaha}
+              options={["Kuliner / F&B", "Fashion", "Kerajinan", "Jasa", "Retail", "Lainnya"]}
             />
           </div>
-          <div>
-            <label htmlFor="businessAge" className={labelClasses}>
-              Lama berdiri
-            </label>
-            <input
-              id="businessAge"
-              type="text"
-              placeholder="Contoh: 3 Tahun"
-              className={inputClasses}
-              required
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-zinc-800">Lama berdiri <span className="text-red-500">*</span></label>
+            <CustomSelect
+              value={lamaBerdiri}
+              onChange={setLamaBerdiri}
+              options={["<1 tahun", "1–2 tahun", "3–5 tahun", ">5 tahun"]}
             />
           </div>
         </div>
 
-        <div>
-          <label className={labelClasses}>
-            Platform jualan <span className="text-zinc-500 font-normal">(bisa lebih dari satu)</span>
+        {/* Platform jualan */}
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-zinc-800">
+            Platform jualan <span className="text-zinc-500 font-normal">(bisa lebih dari satu)</span> <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input type="text" placeholder="Gofood / Grabfood" className={inputClasses} />
-            <input type="text" placeholder="Tokopedia / Shopee" className={inputClasses} />
-            <input type="text" placeholder="WhatsApp / Instagram" className={inputClasses} />
-            <input type="text" placeholder="Lainnya" className={inputClasses} />
+            {platforms.map((val, i) => (
+              <CustomSelect
+                key={i}
+                value={val}
+                onChange={(newVal) => setPlatform(i, newVal)}
+                placeholder="Lainnya..."
+                options={[
+                  "Shopee",
+                  "Tokopedia",
+                  "Gojek",
+                  "Grab",
+                  "TikTok Shop",
+                  "Lazada",
+                  "Offline / Toko fisik"
+                ]}
+              />
+            ))}
           </div>
         </div>
 
-        <div>
-          <label htmlFor="assetEstimation" className={labelClasses}>
-            Estimasi aset usaha (Rp)
-          </label>
+        {/* Estimasi aset */}
+        <div className="space-y-1.5 pt-2">
+          <label className="block text-sm font-medium text-zinc-800">Estimasi aset usaha (Rp) <span className="text-red-500">*</span></label>
           <input
-            id="assetEstimation"
             type="text"
             placeholder="Contoh: 15.000.000"
-            className={inputClasses}
+            className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
             required
           />
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end items-center gap-3 pt-6">
-          <Link
-            to={ROUTES.REGISTER}
-            className="px-6 py-2.5 rounded-xl border border-zinc-200 text-[15px] text-zinc-700 font-medium hover:bg-zinc-50 transition-colors"
+        <div className="flex items-center justify-between pt-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-6 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-700 font-medium text-sm hover:bg-zinc-50 transition-colors"
           >
             Kembali
-          </Link>
+          </button>
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-[#0092B3] text-white text-[15px] font-semibold hover:bg-[#007F9E] transition-colors"
+            className="px-8 py-2.5 rounded-lg bg-[#0092B3] hover:bg-[#007F9E] text-white font-medium text-sm transition-colors shadow-sm"
           >
             Lanjutkan
           </button>

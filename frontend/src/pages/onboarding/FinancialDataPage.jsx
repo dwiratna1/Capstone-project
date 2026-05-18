@@ -1,133 +1,130 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { ImageUp } from 'lucide-react';
-import { ROUTES } from '../../constants/routes';
+import { useState } from "react";
+import { ImageUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../constants/routes";
+import CustomSelect from "../../components/ui/CustomSelect";
 
-/**
- * FinancialDataPage - Onboarding step 2: Financial information.
- */
 const FinancialDataPage = () => {
   const navigate = useNavigate();
+  const [transaksi, setTransaksi] = useState("<10 transaksi");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Simulate finishing onboarding and going to dashboard
     navigate(ROUTES.DASHBOARD);
   };
 
-  const inputClasses = "w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-[15px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#0092B3]/20 focus:border-[#0092B3] transition-colors";
-  const labelClasses = "block text-[14px] font-medium text-zinc-900 mb-2";
-  const hintClasses = "block text-[12px] text-zinc-500 mt-2";
+  const InputField = ({ label, placeholder, hint, required = true, optional = false }) => (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-zinc-800">
+        {label} {required && <span className="text-red-500">*</span>}
+        {optional && <span className="ml-2 align-middle inline-block text-xs px-2 py-0.5 rounded-md bg-[#E6F7FA] text-[#0092B3] font-medium">opsional</span>}
+      </label>
+      <input
+        type="text"
+        placeholder={placeholder}
+        className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
+      />
+      {hint && <p className="text-xs text-zinc-500">{hint}</p>}
+    </div>
+  );
 
   return (
-    <div className="animate-fade-in w-full">
-      {/* Title & Progress Bar */}
-      <h1 className="text-2xl sm:text-[28px] font-bold text-zinc-900 mb-5 tracking-tight">
-        Langkah 2 dari 2 — Data keuangan
-      </h1>
-      
-      <div className="w-full h-1.5 bg-zinc-100 rounded-full mb-8 overflow-hidden">
-        <div className="w-full bg-[#0092B3] h-full rounded-full"></div>
+    <div className="w-full">
+      {/* Step header */}
+      <div className="mb-8">
+        <h1 className="font-heading font-semibold text-2xl text-zinc-900 inline-block">
+          Langkah 2 dari 2 — Data keuangan
+        </h1>
+        {/* Progress bar */}
+        <div className="mt-5 h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-[#0092B3] rounded-full transition-all duration-500 ease-out" 
+            style={{ width: '100%' }}
+          />
+        </div>
       </div>
 
-      {/* Section Header */}
       <div className="mb-6">
-        <h2 className="text-[17px] font-semibold text-zinc-900 mb-1">Data keuangan usahamu</h2>
-        <p className="text-[14px] text-zinc-500">Semakin lengkap data yang kamu berikan, semakin akurat skor kredit yang dihasilkan</p>
+        <h2 className="font-heading font-semibold text-lg text-zinc-900">Data keuangan usahamu</h2>
+        <p className="text-sm text-zinc-500 mt-1">
+          Semakin lengkap data yang kamu berikan, semakin akurat skor kredit yang dihasilkan
+        </p>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="revenue" className={labelClasses}>
-              Rata-rata omzet bulanan (Rp) <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="revenue"
-              type="text"
-              placeholder="8.000.000"
-              className={inputClasses}
-              required
-            />
-            <span className={hintClasses}>*Range ideal: Rp5.000.000 - Rp150.000.000 (Fintech menyasar Unbanked UMKM)</span>
-          </div>
-          <div>
-            <label htmlFor="expense" className={labelClasses}>
-              Rata-rata pengeluaran bulanan (Rp) <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="expense"
-              type="text"
-              placeholder="5.500.000"
-              className={inputClasses}
-              required
-            />
-            <span className={hintClasses}>*Termasuk biaya bahan baku, sewa tempat, dan gaji karyawan.</span>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Omzet & Pengeluaran */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InputField
+            label="Rata-rata omzet bulanan (Rp)"
+            placeholder="8.000.000"
+            hint="*Range ideal: Rp5.000.000 – Rp150.000.000 (Fintech menyasar Unbanked UMKM)"
+          />
+          <InputField
+            label="Rata-rata pengeluaran bulanan (Rp)"
+            placeholder="5.500.000"
+            hint="*Termasuk biaya bahan baku, sewa tempat, dan gaji karyawan."
+          />
         </div>
 
-        <div>
-          <label htmlFor="transactions" className={labelClasses}>
+        {/* Transaksi per bulan */}
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-zinc-800">
             Rata-rata Transaksi per bulan <span className="text-red-500">*</span>
           </label>
-          <input
-            id="transactions"
-            type="text"
-            className={inputClasses}
-            required
+          <CustomSelect
+            value={transaksi}
+            onChange={setTransaksi}
+            options={[
+              "<10 transaksi",
+              "10–50 transaksi",
+              "50–200 transaksi",
+              "200–500 transaksi",
+              ">500 transaksi"
+            ]}
           />
-          <span className={hintClasses}>*Estimasi total transaksi tunai dan non tunai per bulan.</span>
+          <p className="text-xs text-zinc-500">*Estimasi total transaksi tunai dan non tunai per bulan.</p>
         </div>
 
-        <div>
-          <label htmlFor="debt" className={labelClasses}>
-            Total utang yang dideklarasikan (Rp) <span className="text-red-500">*</span>
+        {/* Total utang */}
+        <InputField
+          label="Total utang yang dideklarasikan (Rp)"
+          placeholder="0 jika tidak ada"
+          hint="*Range ideal: Rp1.000.000 – Rp100.000.000 (Rasio utang harus masuk akal terhadap omzet)"
+        />
+
+        {/* Rating toko - upload */}
+        <div className="space-y-2 pt-2">
+          <label className="block text-sm font-medium text-zinc-800">
+            Rating toko <span className="ml-2 align-middle inline-block text-xs px-2 py-0.5 rounded-md bg-[#E6F7FA] text-[#0092B3] font-medium">opsional</span>
           </label>
-          <input
-            id="debt"
-            type="text"
-            placeholder="0 jika tidak ada"
-            className={inputClasses}
-            required
-          />
-          <span className={hintClasses}>*Range ideal: Rp1.000.000 - Rp100.000.000 (Rasio utang harus masuk akal terhadap omzet)</span>
-        </div>
-
-        {/* Rating Toko Upload */}
-        <div>
-          <div className="flex items-center mb-1">
-            <label className="text-[14px] font-medium text-zinc-900">Rating toko</label>
-            <span className="ml-2 bg-[#E6F6F8] text-[#0092B3] px-2.5 py-0.5 rounded-full text-[12px] font-medium">opsional</span>
-          </div>
-          <p className="text-[13px] text-zinc-500 mb-3">Bukti rating toko di Google Maps, Tokopedia, atau Shopee</p>
-          
-          <div className="border border-dashed border-zinc-300 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-zinc-50 transition-colors group">
-            <ImageUp className="w-6 h-6 text-[#0092B3] mb-2 group-hover:-translate-y-1 transition-transform" />
-            <p className="text-[#0092B3] text-[14px] font-medium mb-1">Unggah gambar rating toko di sini</p>
-            <p className="text-zinc-400 text-[12px]">JPG, PNG · Maks. 5 MB</p>
+          <p className="text-xs text-zinc-500">Bukti rating toko di Google Maps, Tokopedia, atau Shopee</p>
+          <div className="w-full border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50/60 hover:bg-[#F0F9FB] hover:border-[#0092B3]/30 transition-all p-8 flex flex-col items-center justify-center cursor-pointer group">
+            <ImageUp className="w-7 h-7 text-[#0092B3] mb-3" />
+            <p className="text-sm text-[#0092B3] font-medium text-center">Unggah gambar rating toko di sini</p>
+            <p className="text-xs text-zinc-400 text-center mt-1">JPG, PNG · Maks. 5 MB</p>
           </div>
         </div>
 
-        {/* Optional Account Link Banner */}
-        <div className="bg-[#F2F9FA] rounded-xl p-4 sm:p-5 mt-2 border border-[#E6F4F5]">
-          <h3 className="text-[#0092B3] font-semibold text-[14px] mb-1">Opsional: hubungkan akun digitalmu</h3>
-          <p className="text-zinc-600 text-[13px] leading-relaxed">
+        {/* Info box opsional */}
+        <div className="rounded-xl bg-[#E6F7FA]/60 border border-[#0092B3]/20 p-4">
+          <p className="text-sm font-semibold text-[#0092B3]">Opsional: hubungkan akun digitalmu</p>
+          <p className="text-sm text-zinc-600 mt-1">
             Koneksi ke GoPay, OVO, atau QRIS dapat meningkatkan akurasi skor hingga +15 poin
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-center sm:justify-center items-center gap-4 pt-6">
-          <Link
-            to={ROUTES.ONBOARDING_BUSINESS}
-            className="w-[140px] text-center px-6 py-3 rounded-xl border border-zinc-200 text-[15px] text-zinc-700 font-medium hover:bg-zinc-50 transition-colors"
+        <div className="flex items-center justify-center gap-4 pt-6">
+          <button
+            type="button"
+            onClick={() => navigate(ROUTES.ONBOARDING_BUSINESS)}
+            className="px-8 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-700 font-medium text-sm hover:bg-zinc-50 transition-colors"
           >
             Kembali
-          </Link>
+          </button>
           <button
             type="submit"
-            className="w-[140px] px-6 py-3 rounded-xl bg-[#0092B3] text-white text-[15px] font-semibold hover:bg-[#007F9E] transition-colors"
+            className="px-10 py-2.5 rounded-lg bg-[#0092B3] hover:bg-[#007F9E] text-white font-medium text-sm transition-colors shadow-sm"
           >
             Daftar
           </button>
