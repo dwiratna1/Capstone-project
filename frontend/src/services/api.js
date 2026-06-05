@@ -13,7 +13,7 @@ const api = axios.create({
 });
 
 /**
- * Request interceptor - attach auth token if available.
+ * Request interceptor - attach auth token if available.  
  */
 api.interceptors.request.use(
   (config) => {
@@ -34,8 +34,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('modalin_token');
-      // Optionally redirect to login
-      // window.location.href = '/login';
+      sessionStorage.removeItem('modalin_estimated_assets');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

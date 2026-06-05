@@ -114,7 +114,12 @@ const businessAgeLabels = {
   THREE_TO_FIVE_YEARS: "3-5 tahun",
   MORE_THAN_5_YEARS: ">5 tahun",
 };
-
+const formatBusinessId = (id) => {
+  if (!id) return "";
+  const value = String(id).toUpperCase();
+  if (value.length <= 10) return value;
+  return `${value.slice(0, 4)}-${value.slice(-4)}`;
+};
 const transactionRangeSelectValues = {
   LESS_THAN_10: "0-50",
   TEN_TO_FIFTY: "0-50",
@@ -287,11 +292,21 @@ const ProfilePage = () => {
                     Informasi dasar tentang usahamu yang ditampilkan ke mitra penilai
                   </p>
 
+                  {businessProfile?.imageUrl && (
+                    <div className="mt-5">
+                      <img
+                        src={businessProfile.imageUrl}
+                        alt="Foto usaha"
+                        className="w-full max-h-64 object-cover rounded-2xl border border-zinc-200"
+                      />
+                    </div>
+                  )}
+
                   <div className="mt-7 grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="md:col-span-2">
                       <Field
                         label="Id Usaha"
-                        value={businessProfile?.id || "12345"}
+                        value={formatBusinessId(businessProfile?.id) || "12345"}
                         helper="Dibuat otomatis oleh sistem · tidak dapat diubah"
                         readOnly
                       />

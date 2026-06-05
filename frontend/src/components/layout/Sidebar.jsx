@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
 import { LayoutDashboard, LineChart, History, User, LogOut, Menu, X } from 'lucide-react';
 import { ROUTES } from '../../constants/routes';
+import { profileService } from '../../services/profileService';
+import { authService } from '../../services/authService';
 import logoModalIn from '../../assets/logo.png';
 
 const navItems = [
@@ -18,9 +21,29 @@ const navItems = [
 const Sidebar = ({ isOpen, onClose, onOpen }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [profile, setProfile] = useState(null);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    let isMounted = true;
+    profileService.getProfile()
+      .then((response) => {
+        if (isMounted) {
+          setProfile(response.data);
+        }
+      })
+      .catch(() => {
+        // ignore fetch errors in sidebar
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleLogout = async () => {
     if (confirm('Yakin ingin keluar dari akun Modalin?')) {
+      await authService.logout();
+      sessionStorage.removeItem('modalin_estimated_assets');
+      setProfile(null);
       navigate(ROUTES.LOGIN);
     }
   };
@@ -70,10 +93,10 @@ const Sidebar = ({ isOpen, onClose, onOpen }) => {
         {/* User chip */}
         <div className="mb-8 px-2">
           <p className="font-heading font-bold text-[14px] text-zinc-900 leading-tight">
-            Dwi Ratna
+            {profile?.user?.name || 'Dwi Ratna'}
           </p>
           <p className="font-body text-[12px] text-zinc-500 mt-0.5">
-            sego tempong mak sus
+            {profile?.businessProfile?.businessName || 'sego tempong mak sus'}
           </p>
         </div>
 

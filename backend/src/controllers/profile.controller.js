@@ -53,9 +53,30 @@ const updateFinancialProfile = async (req, res, next) => {
   }
 };
 
+const uploadBusinessImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      const error = new Error('Image file is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const data = await profileService.updateBusinessImage(req.user.userId, imageUrl);
+
+    return sendSuccess(res, {
+      message: 'Business image uploaded successfully',
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   updateBusinessProfile,
   updateFinancialProfile,
+  uploadBusinessImage,
 };

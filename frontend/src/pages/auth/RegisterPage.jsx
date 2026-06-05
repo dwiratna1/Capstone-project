@@ -45,11 +45,30 @@ const RegisterPage = () => {
               password: formData.password,
             };
 
-      const response = activeTab === "daftar"
-        ? await authService.register(payload)
-        : await authService.login(payload);
+      let response;
+      if (activeTab === "daftar") {
+        try {
+          response = await authService.register(payload);
+        } catch (err) {
+          // If email already exists, attempt login as a graceful fallback
+          if (err.response?.status === 409) {
+            response = await authService.login({ email: payload.email, password: payload.password });
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        response = await authService.login(payload);
+      }
 
-      localStorage.setItem("modalin_token", response.data.token);
+      console.log('auth response', response);
+      const token = response?.data?.token ?? response?.token ?? response?.data?.data?.token;
+      if (!token) {
+        setErrorMessage(response?.message || 'Token tidak diterima dari server');
+        setIsSubmitting(false);
+        return;
+      }
+      localStorage.setItem("modalin_token", token);
       navigate(activeTab === "daftar" ? ROUTES.ONBOARDING_BUSINESS : ROUTES.DASHBOARD);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Gagal memproses request. Coba lagi.");

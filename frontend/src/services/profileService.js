@@ -36,6 +36,20 @@ export const profileService = {
   },
 
   /**
+   * Upload a business image for the user's profile.
+   * @param {FormData} formData - File upload form data
+   * @returns {Promise} Updated profile data
+   */
+  uploadBusinessImage: async (formData) => {
+    const response = await api.post('/profile/business/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /**
    * Update financial information.
    * @param {Object} data - Financial info fields
    * @returns {Promise} Updated profile data

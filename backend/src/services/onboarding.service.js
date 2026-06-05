@@ -184,7 +184,7 @@ const normalizePlatform = (platform) => {
 };
 
 const saveBusinessData = async (userId, payload) => {
-  const { businessName, ownerName, businessType, businessAge, address, description, platforms = [] } = payload;
+  const { businessName, ownerName, businessType, businessAge, address, description, imageUrl, platforms = [] } = payload;
 
   if (!businessName || !businessType || !businessAge) {
     throw createError('businessName, businessType, and businessAge are required', 400);
@@ -222,6 +222,7 @@ const saveBusinessData = async (userId, payload) => {
         businessAge: normalizedBusinessAge,
         address: address?.trim() || null,
         description: description?.trim() || null,
+        imageUrl: imageUrl || null,
       },
       update: {
         businessName: normalizedBusinessName,
@@ -230,6 +231,7 @@ const saveBusinessData = async (userId, payload) => {
         businessAge: normalizedBusinessAge,
         address: address?.trim() || null,
         description: description?.trim() || null,
+        ...(imageUrl !== undefined ? { imageUrl } : {}),
       },
     });
 

@@ -28,6 +28,7 @@ const serializeBusinessProfile = (profile) => {
     businessAge: profile.businessAge,
     address: profile.address,
     description: profile.description,
+    imageUrl: profile.imageUrl,
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };
@@ -171,6 +172,25 @@ const updateBusinessProfile = async (userId, payload) => {
   return getProfileData(userId);
 };
 
+const updateBusinessImage = async (userId, imageUrl) => {
+  await ensureUserExists(userId);
+
+  const businessProfile = await prisma.businessProfile.findUnique({
+    where: { userId },
+  });
+
+  if (!businessProfile) {
+    throw createError('Business profile not found', 404);
+  }
+
+  await prisma.businessProfile.update({
+    where: { userId },
+    data: { imageUrl },
+  });
+
+  return getProfileData(userId);
+};
+
 const updateFinancialProfile = async (userId, payload) => {
   await ensureUserExists(userId);
   await onboardingService.saveFinancialData(userId, payload);
@@ -181,5 +201,6 @@ module.exports = {
   getProfile,
   updateProfile,
   updateBusinessProfile,
+  updateBusinessImage,
   updateFinancialProfile,
 };

@@ -23,21 +23,50 @@ const BusinessDataPage = () => {
     setErrorMessage("");
     setIsSubmitting(true);
 
+    // Validate estimated assets: must be a non-negative number
+    const parseNumeric = (str) => {
+      if (!str && str !== 0) return NaN;
+      // Accept formatted numbers like "15.000.000" or "15,000,000"
+      const cleaned = String(str).replace(/\./g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    const assetsNum = parseNumeric(estimatedAssets);
+    if (isNaN(assetsNum) || assetsNum < 0) {
+      setErrorMessage('Estimasi aset harus berupa angka (>= 0)');
+      setIsSubmitting(false);
+      return;
+    }
     try {
+      // Persist normalized numeric value so next step can read it even if save fails
+      sessionStorage.setItem("modalin_estimated_assets", String(assetsNum));
+
       await onboardingService.saveBusinessData({
         businessName,
         businessType: jenisUsaha,
         businessAge: lamaBerdiri,
         platforms: platforms.filter(Boolean),
       });
-
-      sessionStorage.setItem("modalin_estimated_assets", estimatedAssets);
       navigate(ROUTES.ONBOARDING_FINANCIAL);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Gagal menyimpan data usaha. Coba lagi.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Format input display with thousands separator (dot) for Indonesian style
+  const formatNumberDisplay = (str) => {
+    if (str == null) return '';
+    const onlyDigits = String(str).replace(/\D/g, '');
+    if (!onlyDigits) return '';
+    return onlyDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const handleEstimatedChange = (e) => {
+    const raw = e.target.value;
+    setEstimatedAssets(formatNumberDisplay(raw));
   };
 
   return (
@@ -128,9 +157,11 @@ const BusinessDataPage = () => {
           <label className="block text-sm font-medium text-zinc-800">Estimasi aset usaha (Rp) <span className="text-red-500">*</span></label>
           <input
             type="text"
+            inputMode="numeric"
+            pattern="[0-9.,]*"
             placeholder="Contoh: 15.000.000"
             value={estimatedAssets}
-            onChange={(e) => setEstimatedAssets(e.target.value)}
+            onChange={handleEstimatedChange}
             className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 focus:border-[#0092B3] focus:ring-1 focus:ring-[#0092B3] outline-none transition-all text-sm placeholder:text-zinc-400"
             required
           />
